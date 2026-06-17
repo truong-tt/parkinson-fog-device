@@ -53,16 +53,17 @@ _Not a medical device._
 ## 7. Results
 - ROC-AUC **0.77**, PR-AUC **0.59** (strong ranking).
 - Per-subject LOSO MCC @threshold **+0.20 ± 0.13** — ties baseline, ranks better.
-- Pooled MCC reads +0.34 but is prevalence-weighted (one subject dominates).
-- Events: detection **32%**, latency **0.45 s**, FA/h **0.0**.
-- Honest-eval finding: post-processing collapses low-prevalence folds → fix it.
+- Pooled vs per-subject: pooling is prevalence-weighted → report per-subject.
+- Events (post-pp): detection **78%**, latency **0.17 s**, FA/h **3.7**.
+- Fixed a real bug: symmetric hysteresis collapsed rare-FoG folds → asymmetric
+  (per-subject post-pp +0.07 → +0.18, detection 32% → 78%).
 
 ---
 
 ## 8. Edge: int8 delta
-- PTQ int8; calibration fixed to use scaled windows.
-- MCC fp32 **{{fp32_mcc}}** → int8 **{{int8_mcc}}** (Δ **{{delta_mcc}}**).
-- Model **{{tflite_kib}} KiB**, {{n_params}} params.
+- PTQ int8; calibration on real scaled windows.
+- MCC fp32 **+0.195** → int8 **+0.197** (Δ **+0.001**, effectively lossless).
+- Model **270 KiB**, **185,770** params — MCU-sized.
 
 ---
 
@@ -78,4 +79,4 @@ _Not a medical device._
 - TCN matches the baseline (MCC 0.20) and ranks better (ROC-AUC 0.77), with
   headroom (more epochs/data, post-pp calibration).
 - Honest evaluation surfaced two findings: pooled-vs-per-subject, post-pp collapse.
-- Edge cost quantified: **{{delta_mcc}} MCC** for an MCU-sized int8 model.
+- Edge cost quantified: int8 **effectively lossless** (Δ +0.001 MCC), **270 KiB**.

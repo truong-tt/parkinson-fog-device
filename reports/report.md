@@ -20,11 +20,12 @@ under leave-one-subject-out (LOSO) cross-validation with honest, leakage-free
 thresholds, and (4) quantize to int8 and measure the accuracy cost of edge
 deployment. On 7 subjects (7,846 windows, 26.0% FoG), the TCN reaches ROC-AUC **0.77** and a
 per-subject LOSO MCC of **+0.20 ± 0.13** at its operating threshold — matching
-the best classical baseline (+0.20 Decision Tree) while ranking better. We show
-that the headline depends on the metric: a prevalence-pooled MCC reads +0.34 but
-masks per-subject variance, and the default post-processing collapses
-low-prevalence folds (a calibration finding, not a model failure). int8
-quantization costs **{{delta_mcc}}** MCC for a **{{tflite_kib}} KiB** model.
+the best classical baseline (+0.20 Decision Tree) while ranking better — and with
+streaming post-processing detects **78% of freeze episodes at 0.17 s latency**
+(3.7 false alarms/h). Honest per-subject evaluation surfaced two corrections:
+the prevalence-pooled MCC masked a 0.27 per-subject gap, and symmetric hysteresis
+collapsed low-prevalence folds until switched to asymmetric. int8 quantization is
+**effectively lossless (ΔMCC +0.001)** at a **270 KiB**, MCU-sized model.
 
 ---
 
@@ -120,34 +121,47 @@ and flattered by the one high-prevalence subject):
 | | MCC | Sens | Spec |
 |---|---|---|---|
 | Pooled @0.5 | +0.281 | 84.7% | 46.4% |
-| Pooled @post-processed | +0.337 | 45.6% | 86.3% |
+| Pooled @post-processed | +0.277 | 87.6% | 42.4% |
 | **Per-subject mean @fold-threshold** | **+0.204 ± 0.129** | — | — |
-| **Per-subject mean @post-processed** | **+0.071 ± 0.096** | — | — |
+| **Per-subject mean @post-processed** | **+0.182 ± 0.129** | — | — |
 
-Event level (post-processed): detection rate **32.0%**, mean latency
-**0.45 s**, false alarms/h **0.00**.
+Event level (post-processed): detection rate **78.2%**, mean latency
+**0.17 s**, false alarms/h **3.72**.
 
 **TCN vs baseline:** at the honest per-subject operating point the TCN **matches**
 the Decision-Tree baseline (0.204 vs 0.204 MCC) and ranks markedly better
-(ROC-AUC 0.772). The default post-processing currently *hurts* the per-subject
-mean (0.204 → 0.071): the hysteresis band (0.2) drives low-prevalence folds
-(subjects 2, 5, 6) to all-negative — e.g. subject 2 falls from +0.356
-@fold-threshold to 0.000 @post-processed. This is a post-processing calibration
-issue, not a model failure; narrowing the hysteresis band recovers it. Two
-takeaways: **report per-subject mean, not pooled** (pooling hid a 0.27 gap), and
-**hysteresis must be calibrated per prevalence**.
+(ROC-AUC 0.772).
+
+A post-processing finding drove a fix. The original symmetric hysteresis (enter
+at `threshold + band/2`) was *stricter* than the operating threshold and
+collapsed low-prevalence folds to all-negative — subject 2 fell from +0.356
+@fold-threshold to 0.000, dragging the per-subject post-pp mean to +0.071.
+Switching to **asymmetric hysteresis** (enter at the threshold, debounce only the
+exit) recovered it: per-subject post-pp mean **+0.071 → +0.182** (≈ the
+fold-threshold), and episode detection **32% → 78%** at 0.17 s latency. The
+trade-off is now visible and clinically tunable: sensitivity rose at the cost of
+specificity and **3.7 false alarms/h** (subject 5 worst at 14/h). Subject 6 (5.7%
+FoG, the rarest) stays undetectable — a data-scale limit, not a pipeline bug. Two
+takeaways for the report: **report per-subject mean, not the prevalence-pooled
+MCC** (pooling hid a 0.27 gap), and **streaming post-processing must enter at the
+operating point**, not above it.
 
 ### 3.2 Edge int8 delta
-From `models/int8_delta.json`:
+Measured on the subject-3 fold (`models/int8_delta.json`), int8 PTQ calibrated
+on real scaled windows. Conversion runs on Python ≤3.11 (TF 2.15); not on current
+Colab (3.12), so it is produced locally.
 
 | | fp32 | int8 | Δ |
 |---|---|---|---|
-| MCC | {{fp32_mcc}} | {{int8_mcc}} | {{delta_mcc}} |
-| Sensitivity | {{fp32_sens}} | {{int8_sens}} | — |
-| Model size | — | {{tflite_kib}} KiB | — |
-| Parameters | {{n_params}} | — | — |
+| MCC | +0.195 | +0.197 | **+0.001** |
+| Sensitivity | 39.3% | 39.6% | — |
+| Specificity | 79.7% | 79.6% | — |
+| Model size | — | **269.9 KiB** | — |
+| Parameters | 185,770 | — | — |
 
-Probability MAE fp32↔int8: **{{prob_mae}}**.
+Probability MAE fp32↔int8: **0.0015**. int8 quantization is effectively
+lossless here (ΔMCC +0.001, within run-to-run noise) while the model is MCU-sized
+at 270 KiB — the central edge-deployment claim, now measured rather than asserted.
 
 ---
 
