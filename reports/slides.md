@@ -28,8 +28,8 @@ _Not a medical device._
 ---
 
 ## 4. Why not something simple? (Baseline)
-- Freeze-Index threshold: MCC **{{fi_mcc}}**.
-- Shallow ML on hand features: MCC **{{lr_mcc}}** / **{{dt_mcc}}**.
+- Freeze-Index threshold: MCC **−0.05** (≈ chance).
+- Shallow ML on hand features: MCC **+0.16** (LogReg) / **+0.20** (Tree).
 - Sets the bar the deep model must clear.
 
 ---
