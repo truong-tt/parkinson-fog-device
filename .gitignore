@@ -8,6 +8,12 @@
 !requirements.txt
 !requirements-edge.txt
 !pyproject.toml
+!DATA_LICENSE
+# Bundle the BSD-3 Stanford NMBL *processed* windows so Colab's clone has data
+# (raw recordings stay out — large and not needed for train/eval). See DATA_LICENSE.
+!data/
+!data/processed/
+!data/processed/**
 !src/
 !src/**
 !tests/

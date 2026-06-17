@@ -424,7 +424,7 @@ Three operating points reported per fold: fixed-threshold, fold-optimized thresh
 
 Data: [Stanford NMBL IMU FoG Detection Repository](https://github.com/stanfordnmbl/imu-fog-detection)
 
-All credit for data collection and release goes to Stanford Neuromuscular Biomechanics Laboratory. Use of raw data is subject to their original license and terms.
+All credit for data collection and release goes to Stanford Neuromuscular Biomechanics Laboratory. The upstream dataset is BSD-3-Clause licensed. This repo bundles the **preprocessed windows** under `data/processed/` (derived via `src/data_pipeline/preprocess.py`) and retains the upstream license in [`DATA_LICENSE`](DATA_LICENSE) per its terms; the raw recordings are not redistributed here.
 
 ---
 
