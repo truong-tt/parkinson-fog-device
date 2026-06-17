@@ -53,21 +53,26 @@ def _apply_rotation(window, R):
 
 
 class FoGDataset(Dataset):
-    """Windowed IMU dataset.
+    """Windowed IMU dataset holding raw windows plus an optional RobustScaler.
 
-    Holds *raw* (unscaled) windows plus an optional fitted ``RobustScaler``.
-    Augmentation order matters and is deliberate (see B1 in the project plan):
+    The per-item augmentation order is deliberate so rotation stays a rigid
+    transform in physical space: (1) geometric/gain augs (rotation, gain,
+    time-shift) in physical units, (2) scale, (3) additive jitter in normalized
+    space. The RNG is seeded for reproducibility; re-seed per worker via
+    ``fog_worker_init_fn``.
 
-      1. Geometric/gain augmentations (rotation, per-channel gain, time-shift)
-         run in **physical sensor units**. Rotation is only a rigid SO(3)
-         transform when applied before the anisotropic per-channel scaler — so
-         it must precede scaling.
-      2. ``scaler.transform`` is applied next (if a scaler is given).
-      3. Additive ``jitter`` is applied last, in **normalized** space, where it
-         models post-normalization sensor noise.
-
-    The augmentation RNG is seeded (``seed``) so runs are reproducible; for
-    multi-worker loaders, re-seed per worker via ``fog_worker_init_fn``.
+    Args:
+        features: Raw windows ``(N, T, 9)``.
+        labels: Dense ``(N, T)`` or legacy 1D ``(N,)`` last-step labels.
+        scaler: Fitted RobustScaler applied after geometric augmentation.
+        augment: Enable augmentation (train split only).
+        augment_prob: Probability for jitter/gain/time-shift.
+        jitter_sigma: Std of normalized-space additive noise.
+        scale_sigma: Std of per-channel gain.
+        max_time_shift: Max +/- roll in samples.
+        rotation_max_deg: Max rotation angle in degrees.
+        rotation_prob: Probability of applying rotation.
+        seed: Base seed for the augmentation RNG.
     """
 
     def __init__(self, features, labels, scaler=None, augment=False,
@@ -89,10 +94,7 @@ class FoGDataset(Dataset):
         self.max_time_shift = max_time_shift
         self.rotation_max_rad = np.deg2rad(rotation_max_deg)
         self.rotation_prob = rotation_prob
-        # Seeded generator -> reproducible augmentation. None falls back to OS
-        # entropy (non-reproducible) but that path is only hit if a caller opts
-        # out explicitly. fog_worker_init_fn re-seeds this per DataLoader worker.
-        self._base_seed = seed
+        self._base_seed = seed  # re-applied per worker by fog_worker_init_fn
         self.rng = np.random.default_rng(seed)
 
     def __len__(self):
@@ -216,11 +218,30 @@ def recording_lengths(data_dir, subject):
 def create_loso_dataloaders(data_dir, test_subject, val_subject=None, batch_size=64,
                             scaler=None, augment_train=True, num_workers=0, seed=42,
                             rotation_max_deg=15.0, rotation_prob=0.5):
-    """Returns (train_loader, val_loader, test_loader, scaler, meta).
+    """Build train/val/test loaders for one LOSO fold.
 
-    Picks an inner val subject from the training pool so model selection
-    never peeks at the test subject. Scaler is fit on training data only,
-    unless one is supplied (eval path).
+    Picks an inner val subject from the training pool (model selection never
+    peeks at the test subject) and fits the scaler on training data only, unless
+    one is supplied (eval path).
+
+    Args:
+        data_dir: Directory of ``subj_<id>_<file>_{x,y}.npy`` windows.
+        test_subject: Held-out subject id.
+        val_subject: Inner-val subject; chosen deterministically if ``None``.
+        batch_size: Loader batch size.
+        scaler: Pre-fitted RobustScaler (eval); fit on train when ``None``.
+        augment_train: Apply augmentation to the train split.
+        num_workers: DataLoader workers.
+        seed: Seed for the val-subject choice, shuffling, and augmentation.
+        rotation_max_deg: Max rotation-augmentation angle in degrees.
+        rotation_prob: Probability of applying rotation per sample.
+
+    Returns:
+        Tuple ``(train_loader, val_loader, test_loader, scaler, meta)``; the
+        val/test loaders are ``None`` when those splits are empty.
+
+    Raises:
+        ValueError: If the test/val subject is missing or the train pool is empty.
     """
     groups = _group_files_by_subject(data_dir)
     if test_subject not in groups:

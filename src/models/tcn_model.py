@@ -1,17 +1,22 @@
+"""Causal TCN building blocks and the HopeGaitTCN model.
+
+All components are strictly causal (output at step ``t`` never depends on
+``t+1``) and batch-size-1 friendly, so the offline training graph matches live
+streaming inference on the MCU.
+"""
+
 import torch
 import torch.nn as nn
 from torch.ao.quantization import QuantStub, DeQuantStub
 
 
 class TimeWiseLayerNorm(nn.Module):
-    """LayerNorm over the channel dimension only, applied per-timestep.
+    """LayerNorm over channels only, applied per-timestep.
 
-    For input (B, C, T), each timestep is normalized using statistics computed
-    only from its own C channels — no leak across the time axis. This keeps
-    the dense per-timestep head strictly causal in a way that GroupNorm /
-    BatchNorm / InstanceNorm do not (those compute stats over T).
-
-    Also batch-size-1 friendly at MCU inference time, unlike BatchNorm.
+    For input ``(B, C, T)`` each timestep is normalized using its own ``C``
+    channels, so no statistics leak across time and the dense head stays causal
+    (unlike BatchNorm/GroupNorm/InstanceNorm, which pool over ``T``). Also
+    batch-size-1 friendly for MCU inference.
     """
 
     def __init__(self, channels):
@@ -44,15 +49,16 @@ class Chomp1d(nn.Module):
 
 
 class CausalSqueezeExcite1d(nn.Module):
-    """Channel attention that uses a *causal cumulative mean* instead of a
-    full-window mean.
+    """Squeeze-and-excitation using a causal cumulative mean.
 
-    Standard SE pools globally over time (`x.mean(dim=2)`), which leaks the
-    future when training the dense per-timestep head. Replacing the pool with
-    `cummean` keeps each timestep's gating dependent only on the past, so the
-    dense head stays strictly causal — and the last-step gating is identical
-    to standard SE because the cumulative mean over the full window equals
-    the global mean.
+    Standard SE pools globally over time (``x.mean(dim=2)``), leaking the future
+    when training the dense head. A running mean keeps each timestep's gating
+    dependent only on the past; at the last step it equals standard SE (the
+    cumulative mean over the full window is the global mean).
+
+    Args:
+        channels: Number of input/output channels.
+        reduction: Bottleneck channel-reduction ratio.
     """
 
     def __init__(self, channels, reduction=8):
@@ -72,6 +78,8 @@ class CausalSqueezeExcite1d(nn.Module):
 
 
 class TemporalBlock(nn.Module):
+    """Residual block: two causal dilated convs, norm, SE, and a skip connection."""
+
     def __init__(self, n_inputs, n_outputs, kernel_size, stride, dilation, padding,
                  dropout=0.2, drop_path=0.0, use_se=True):
         super().__init__()
@@ -116,20 +124,26 @@ class TemporalBlock(nn.Module):
 
 
 class HopeGaitTCN(nn.Module):
-    """Causal TCN with two heads:
+    """Causal TCN with a last-step head and a dense per-timestep head.
 
-    - Last-step head (always returned) — what the MCU runs at inference.
-    - Dense per-timestep head (returned during training) — denser supervision.
+    ``forward(x)`` returns last-step logits (what the MCU runs); ``forward_dense``
+    returns both heads (the dense head gives denser training supervision). With 4
+    blocks, exponential dilation ``(1, 2, 4, 8)`` and ``kernel_size=3`` the
+    receptive field is ``1 + 2*(k-1)*sum(dilations) = 61`` samples (~0.95 s at
+    64 Hz).
 
-    `forward(x)` returns last-step logits; call `forward_dense(x)` to get both.
+    Args:
+        num_inputs: Input channels per timestep (9 for this pipeline).
+        num_channels: Output channels per temporal block.
+        kernel_size: Convolution kernel size.
+        num_classes: Output classes (2: walk vs freeze).
+        dropout: Dropout rate inside each block.
+        drop_path: Max stochastic-depth rate, scaled linearly across blocks.
+        use_se: Enable causal squeeze-and-excitation.
     """
 
     def __init__(self, num_inputs=9, num_channels=(32, 64, 96, 128), kernel_size=3,
                  num_classes=2, dropout=0.3, drop_path=0.1, use_se=True):
-        # 4 blocks with exponential dilation (1, 2, 4, 8) and kernel_size=3
-        # give a receptive field of 1 + 2*(k-1)*sum(dilations) = 61 samples,
-        # i.e. ~0.95 s at 64 Hz — covers nearly half a 2-second window of
-        # past context, which the previous 3-block (29-sample) stack did not.
         super().__init__()
         # Quant/DeQuant stubs are no-ops in FP32; enabled by QAT in the edge phase.
         self.quant = QuantStub()

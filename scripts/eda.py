@@ -39,6 +39,12 @@ def _step_seconds(seq_length):
 
 
 def collect_stats(data_dir, seq_length):
+    """Gather per-subject and episode statistics for one window size.
+
+    Returns:
+        Stats dict (counts, prevalence, per-recording episode lengths,
+        per-subject breakdown), or ``None`` if no subjects are found.
+    """
     groups = _group_files_by_subject(data_dir)
     subjects = sorted(groups)
     if not subjects:
@@ -87,6 +93,7 @@ def collect_stats(data_dir, seq_length):
 
 
 def make_figures(stats):
+    """Write class-balance, per-subject-prevalence, and episode-length figures."""
     import matplotlib
     matplotlib.use('Agg')
     import matplotlib.pyplot as plt
@@ -133,6 +140,7 @@ def make_figures(stats):
 
 
 def write_summary(all_stats, path):
+    """Write the markdown EDA summary (per-window stats + per-subject table)."""
     lines = ["# HopeGait — Dataset EDA (Stanford NMBL)", ""]
     for stats in all_stats:
         w = stats['window']

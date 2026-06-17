@@ -23,6 +23,17 @@ else:
 
 
 def get_config(env_name, yaml_key, default, parser=None):
+    """Resolve a setting with precedence env var > YAML > default.
+
+    Args:
+        env_name: Environment variable name (highest precedence).
+        yaml_key: Key in the YAML config file.
+        default: Fallback value.
+        parser: Optional callable to coerce the env-var string.
+
+    Returns:
+        The resolved configuration value.
+    """
     env_val = os.environ.get(env_name)
     if env_val is not None:
         if parser:

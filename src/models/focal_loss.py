@@ -4,11 +4,15 @@ import torch.nn.functional as F
 
 
 class FocalLoss(nn.Module):
-    """Focal CE.
+    """Focal cross-entropy for the last-step and dense heads.
 
-    Accepts:
-      inputs (B, C)         + targets (B,)        — last-step head
-      inputs (B, C, T)      + targets (B, T)      — dense per-timestep head
+    Accepts both head shapes: ``(B, C)`` logits with ``(B,)`` targets
+    (last-step head), or ``(B, C, T)`` with ``(B, T)`` (dense per-timestep head).
+
+    Args:
+        alpha: Optional per-class weight tensor of shape ``(C,)``.
+        gamma: Focusing exponent; larger values down-weight easy examples.
+        reduction: One of ``'mean'``, ``'sum'``, ``'none'``.
     """
 
     def __init__(self, alpha=None, gamma=2.0, reduction='mean'):

@@ -1,20 +1,10 @@
-"""Streaming post-processing for FoG probabilities.
+"""Streaming post-processing for FoG probabilities (causal, MCU-portable).
 
-Two stages, both causal so they're MCU-portable:
-
-1. `smooth_probs` — boxcar moving average over `window` consecutive predictions.
-   Knocks down single-window flicker that the raw classifier produces near the
-   decision boundary. Larger `window` -> smoother but laggier.
-
-2. `apply_hysteresis` — dual-threshold Schmitt trigger. Enter the FREEZE state
-   only when smoothed prob crosses `high`; leave only when it drops below
-   `low`. Without hysteresis a probability that hovers around a single
-   threshold produces alternating 0/1 predictions; in the wild this would
-   pulse the cueing belt on and off uselessly.
-
-Both functions accept a 1D array of probabilities for a single recording (in
-chronological order). For multi-recording evaluation, call them once per
-recording so the state machine never crosses a recording boundary.
+Two stages: ``smooth_probs`` (causal boxcar moving average that suppresses
+near-threshold flicker) and ``apply_hysteresis`` (Schmitt trigger that debounces
+the decision so the cueing belt does not pulse on/off). Both take a 1-D array
+for a single recording in chronological order; call them once per recording so
+the state machine never crosses a recording boundary.
 """
 
 from __future__ import annotations

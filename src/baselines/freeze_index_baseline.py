@@ -1,20 +1,15 @@
 """Non-deep LOSO baselines — the "why deep learning" control.
 
-Two classical baselines on the SAME LOSO protocol, scaler-on-train-only and
-inner-val Youden-J threshold as the TCN, so the comparison is apples-to-apples:
+Two classical baselines on the same LOSO protocol as the TCN (scaler on train
+only, inner-val Youden-J threshold), so the comparison is apples-to-apples:
 
-  1. Freeze-Index threshold (Bachlin 2010 style): a single FI scalar per window,
-     thresholded. The minimal domain baseline — if the TCN can't beat this it
-     isn't earning its parameters.
-  2. Shallow ML (LogisticRegression / DecisionTree) on a small hand-built
-     feature vector: FI + STFT band power + per-channel mean/std/energy.
+  1. Freeze-Index threshold (Bächlin 2010): a single FI scalar per window.
+  2. Shallow ML (LogReg / DecisionTree) on FI + STFT band power + per-channel
+     mean/std/energy.
 
-Reuses the existing DSP (`freeze_index_window`, `stft_band_power_window`), the
-LOSO grouping (`_group_files_by_subject`), and the SAME scoring helpers as the
-TCN evaluator (`_metrics_from_preds`, per-recording event metrics) so the
-numbers drop straight into the report's comparison table.
+Reuses the DSP features, LOSO grouping, and the TCN evaluator's scoring helpers,
+so the numbers drop straight into the report. Run::
 
-Run:
     python src/baselines/freeze_index_baseline.py
 """
 
@@ -104,6 +99,17 @@ def _score_subject(scores_test, y_test, thr, data_dir, subj, seq_length):
 
 
 def run_baselines(data_dir, seq_length, seed=SEED):
+    """Run all baselines over LOSO for one window size.
+
+    Args:
+        data_dir: Directory of processed windows for this window size.
+        seq_length: Window length in samples.
+        seed: Seed for the inner-val subject choice and the tree.
+
+    Returns:
+        Summary dict with per-model ``mcc_mean``/``mcc_std`` and per-subject
+        metrics, or ``None`` if fewer than 3 subjects are available.
+    """
     groups = _group_files_by_subject(data_dir)
     subjects = sorted(groups)
     if len(subjects) < 3:

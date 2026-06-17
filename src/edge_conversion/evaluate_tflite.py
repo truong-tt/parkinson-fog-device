@@ -1,13 +1,12 @@
-"""Measure the int8 quantization accuracy delta (Edge-phase deliverable).
+"""Measure the int8-vs-fp32 accuracy delta (edge-phase deliverable).
 
-`quantize_model.py` produces an int8 `.tflite` but nothing checks what
-quantization costs. This script runs BOTH the fp32 PyTorch checkpoint and the
-int8 TFLite model over the SAME fold's test windows (scaled identically with
-the fold's persisted RobustScaler) and reports the MCC/sensitivity/specificity
-delta plus the model's on-disk size and parameter count.
+Runs the fp32 PyTorch checkpoint and the int8 TFLite model over the same fold's
+test windows (scaled with the fold's RobustScaler) and reports the MCC/sens/spec
+delta, on-disk size, and parameter count. Both get identical input, so any gap
+is attributable to quantization alone.
 
-Both models receive the same scaled input, so any gap is attributable to
-quantization alone. Run in the edge venv:
+Run in the edge venv::
+
     pip install -r requirements-edge.txt
     python src/edge_conversion/evaluate_tflite.py --subject 3
 """
@@ -94,6 +93,15 @@ def _fp32_probs(model_path, X):
 
 
 def evaluate(subject, seq_length):
+    """Compute fp32-vs-int8 metrics for one fold.
+
+    Args:
+        subject: Test-subject id whose checkpoint/scaler/tflite to load.
+        seq_length: Window length; selects the ``win_<seq_length>`` directories.
+
+    Returns:
+        Dict with per-model metrics, deltas, model size, params, and prob MAE.
+    """
     from data_pipeline.dsp import RobustScaler
     from training.evaluate import _metrics_from_preds, _load_fold_threshold
 

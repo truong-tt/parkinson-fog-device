@@ -46,6 +46,12 @@ class IMUFilter:
         return _warm_lfilter(self.b_grav, self.a_grav, data)
 
     def process_signal(self, acc, gyro, timestamps=None):
+        """Resample (if timestamps given), lowpass, and split gravity from motion.
+
+        Returns:
+            ``(linear_acc, gravity, gyro_lp, new_timestamps)``; ``new_timestamps``
+            is ``None`` when no input timestamps were supplied.
+        """
         new_ts = None
         if timestamps is not None:
             acc, new_ts = self.resample_data(timestamps, acc)
@@ -59,8 +65,22 @@ class IMUFilter:
 
 def freeze_index_window(linear_acc_window, fs=64.0, nperseg=None,
                         loco_band=(0.5, 3.0), freeze_band=(3.0, 8.0)):
-    # PSD computed per-axis then summed. DO NOT use ||acc|| first: the magnitude
-    # rectifies sinusoids and doubles their apparent frequency, inverting the FI.
+    """Freeze Index: freeze-band power over locomotor-band power (Bächlin 2010).
+
+    PSD is computed per-axis then summed. Do NOT take ``||acc||`` first — the
+    magnitude rectifies sinusoids and doubles their apparent frequency,
+    inverting the index.
+
+    Args:
+        linear_acc_window: ``(T, k)`` gravity-removed acceleration window.
+        fs: Sampling rate in Hz.
+        nperseg: Welch segment length; defaults to ``min(128, T)``.
+        loco_band: Locomotor band ``(lo, hi)`` in Hz.
+        freeze_band: Freeze band ``(lo, hi)`` in Hz.
+
+    Returns:
+        Scalar freeze index; ``0.0`` if the window is too short.
+    """
     data = np.asarray(linear_acc_window)
     n = nperseg if nperseg is not None else min(128, len(data))
     if n < 8:
@@ -72,6 +92,17 @@ def freeze_index_window(linear_acc_window, fs=64.0, nperseg=None,
 
 
 def stft_band_power_window(linear_acc_window, fs=64.0, nperseg=64, band=(3.0, 8.0)):
+    """Mean STFT magnitude within ``band`` for a window.
+
+    Args:
+        linear_acc_window: ``(T, k)`` gravity-removed acceleration window.
+        fs: Sampling rate in Hz.
+        nperseg: STFT segment length (clamped to the window length).
+        band: Frequency band ``(lo, hi)`` in Hz.
+
+    Returns:
+        Scalar mean band magnitude; ``0.0`` if the window is too short.
+    """
     data = np.asarray(linear_acc_window)
     n = min(nperseg, len(data))
     if n < 8:

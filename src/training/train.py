@@ -1,18 +1,11 @@
 """LOSO training loop.
 
-Per fold:
-  - Train HopeGaitTCN with focal loss on the last-step head plus a weighted
-    dense per-timestep auxiliary loss (denser supervision -> better gradient
-    signal than predicting only the last sample of each window).
-  - Track an EMA of the model weights and validate on the EMA copy.
-  - Select the best epoch by val MCC on the EMA copy (not val loss — focal
-    minima don't always coincide with MCC maxima on imbalanced data).
-  - Save the EMA weights, the scaler, and a per-fold operating threshold
-    chosen on the inner val set by Youden's J. Test-time evaluation reuses
-    that threshold so we never tune the threshold on the test fold.
-
-Cloud-GPU friendly: optional AMP, CLI overrides for subjects/windows, runs
-without a GPU (falls back to CPU).
+Per fold: train HopeGaitTCN with focal loss (last-step + weighted dense head),
+track an EMA of the weights, select the best epoch by val MCC on the EMA copy
+(focal minima don't always coincide with MCC maxima on imbalanced data), and
+save the EMA weights, scaler, and a Youden-J threshold from the inner val set.
+The threshold is reused at test time, so it is never tuned on the test fold.
+Optional AMP; runs on CPU or GPU.
 """
 
 import os
@@ -132,6 +125,13 @@ def _val_mcc_and_threshold(probs, targets):
 
 
 def train_fold(test_subject, seq_length, args):
+    """Train one LOSO fold and save the best EMA checkpoint, scaler, and meta.
+
+    Args:
+        test_subject: Held-out subject id for this fold.
+        seq_length: Window length in samples.
+        args: Parsed CLI args (epochs, batch_size, learning_rate, device, ...).
+    """
     set_seed(args.seed)
     data_dir = os.path.join(PROCESSED_DATA_DIR, f'win_{seq_length}')
     device = resolve_device(args.device)

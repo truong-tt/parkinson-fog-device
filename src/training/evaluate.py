@@ -1,19 +1,10 @@
 """LOSO evaluation.
 
-Reports three operating points:
-  - @0.5: naive threshold (still useful as a sanity baseline).
-  - @fold-Youden: each fold uses the threshold chosen on its own inner val
-    set during training. Stored in the fold's meta JSON. This is the honest
-    real-time number — no peeking at the test set.
-  - @post-processed: per-recording smoothing + hysteresis around the
-    fold-Youden threshold. This is the number that approximates what the
-    cueing belt would actually deliver.
-
-Sample-level metrics (sensitivity, specificity, F1, MCC, PR-AUC, ROC-AUC)
-report per-prediction performance. Event-level metrics — episode detection
-rate, detection latency, and false alarms per hour — describe what the
-patient actually experiences from the cueing belt: did it catch each
-freezing episode and how often did it cry wolf during normal walking.
+Reports three operating points per fold — @0.5, @fold-Youden (the honest
+threshold chosen on the inner val set, no test peeking), and @post-processed
+(per-recording smoothing + hysteresis) — plus sample-level metrics
+(sens/spec/F1/MCC/PR-AUC/ROC-AUC) and event-level metrics (episode detection
+rate, latency, false alarms/h) that describe the cueing experience.
 """
 
 import os
@@ -218,6 +209,12 @@ def _load_fold_threshold(meta_path, fallback=0.5):
 
 
 def evaluate_fold(test_subject, seq_length):
+    """Load a fold's model/scaler and score its test split.
+
+    Returns:
+        ``(probs, targets, meta, fold_threshold, rec_lengths)``, or ``None`` if
+        the checkpoint or scaler is missing.
+    """
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     target_dir = os.path.join(MODELS_DIR, f'win_{seq_length}')
     model_path = os.path.join(target_dir, f'hopegait_tcn_best_subj{test_subject}.pth')
@@ -246,6 +243,12 @@ def evaluate_fold(test_subject, seq_length):
 
 
 def evaluate_window(seq_length):
+    """Aggregate per-subject LOSO metrics for one window size.
+
+    Returns:
+        A summary dict (pooled and per-subject metrics, event metrics, AUCs,
+        mean +/- std), or ``None`` if no folds were evaluated.
+    """
     data_dir = os.path.join(PROCESSED_DATA_DIR, f'win_{seq_length}')
     subjects = get_all_subjects(data_dir)
     if not subjects:

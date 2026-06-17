@@ -1,16 +1,14 @@
-"""PyTorch -> ONNX -> TF -> int8 TFLite -> C header. Edge-phase script.
+"""PyTorch -> ONNX -> TF -> int8 TFLite -> C header (edge-phase script).
 
-Reads architecture and window settings from src/config.py so the converted
-graph matches the trained checkpoint exactly. The heavy edge stack
-(``onnx``, ``onnx_tf``, ``tensorflow``) is imported lazily so this module
-can be imported in environments that only have the training deps installed
-(useful for unit-testing the CLI surface).
+Reads architecture/window settings from ``config.py`` so the graph matches the
+trained checkpoint. The heavy edge stack (onnx/onnx_tf/tensorflow) is imported
+lazily, so this module imports fine with only the training deps (CLI unit tests).
 
-Usage:
+Usage::
+
     python src/edge_conversion/quantize_model.py --subject 3
     python src/edge_conversion/quantize_model.py --subject 3 --window 128 \\
-        --checkpoint models/hopegait_tcn_best_subj3.pth \\
-        --output-prefix models/hopegait
+        --checkpoint models/win_128/hopegait_tcn_best_subj3.pth
 """
 
 import os
@@ -100,6 +98,7 @@ def representative_data_gen_factory(seq_length, num_inputs, processed_dir,
 
 
 def convert_to_c_array(tflite_path, header_path):
+    """Write the ``.tflite`` bytes as a C header array for the MCU runtime."""
     with open(tflite_path, 'rb') as f:
         tflite_content = f.read()
     hex_lines = []

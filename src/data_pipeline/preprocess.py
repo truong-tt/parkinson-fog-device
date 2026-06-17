@@ -1,39 +1,17 @@
 """Segment raw IMU recordings into labeled windows.
 
-The upstream stanfordnmbl/imu-fog-detection dataset provides 6 raw channels
-per IMU at 128 Hz:
+The upstream Stanford NMBL dataset provides 6 raw channels at 128 Hz
+(``ax, ay, az, gx, gy, gz``). We resample to 64 Hz and expand the 3 accel
+channels into ``linear_acc + gravity`` via a 0.3 Hz lowpass — a deliberate
+inductive bias giving the model a clean orientation signal. Output channels:
 
-    ax, ay, az  (accelerometer, m/s^2)
-    gx, gy, gz  (gyroscope,    rad/s)
+    0..2  linear_acc (xyz, m/s^2, gravity removed)
+    3..5  gravity    (xyz, m/s^2, low-frequency accel)
+    6..8  gyro       (xyz, rad/s)
 
-We resample to FREQ_DESIRED=64 Hz then EXPAND those 6 raw channels into 9
-input channels by splitting accelerometer into linear_acc + gravity via a
-0.3 Hz lowpass (the gravity component is the slow part of acc; subtracting
-it yields motion-only linear_acc). The TCN consumes these 9 channels; the
-expansion is a deliberate inductive bias — it gives the model a clean
-gravity-orientation signal without forcing it to learn the lowpass split:
-
-  In (raw, 6):       ax  ay  az  gx  gy  gz                    @ 128 Hz raw
-  Resample:          ax  ay  az  gx  gy  gz                    @ 64 Hz
-  DSP split:         linear_acc[3] | gravity[3] | gyro[3]      @ 64 Hz
-
-Output channel layout (9):
-  0..2  linear_acc  (xyz, m/s^2, gravity removed)
-  3..5  gravity     (xyz, m/s^2, slow component of acc)
-  6..8  gyro        (xyz, rad/s)
-
-A 2-second window at 64 Hz is 128 samples — matches WINDOW_DUR * FREQ_DESIRED
-in the upstream dataset code.
-
-Per-window scalar DSP features (Freeze Index, STFT band power) used to live
-in the input tensor but were broadcast as constants across all timesteps —
-flat columns that wasted model capacity. They're gone. The TCN learns its
-own frequency cues from the linear_acc channels, given the dilated
-receptive field.
-
-Labels are saved per-timestep (shape (N, T)). Training derives the last-step
-label on the fly when needed (causal real-time head) and uses the full vector
-for the dense auxiliary loss.
+A 2 s window at 64 Hz is 128 samples. Labels are saved per-timestep ``(N, T)``;
+training derives the last-step label (causal head) and uses the full vector for
+the dense auxiliary loss.
 """
 
 import os
@@ -72,6 +50,15 @@ def _resample_labels(timestamps, labels, fs):
 
 
 def segment_file(raw_data_path, output_base_dir, window_sizes, overlap=WINDOW_OVERLAP, fs=SAMPLING_RATE):
+    """Preprocess one recording into windowed ``_x.npy``/``_y.npy`` per size.
+
+    Args:
+        raw_data_path: CSV/XLSX recording with the expected ``imu_lumbar_*`` columns.
+        output_base_dir: Root under which ``win_<size>/`` directories are written.
+        window_sizes: Window lengths in samples to emit.
+        overlap: Fractional window overlap.
+        fs: Target sampling rate in Hz.
+    """
     if raw_data_path.endswith('.xlsx'):
         df = pd.read_excel(raw_data_path)
     else:
