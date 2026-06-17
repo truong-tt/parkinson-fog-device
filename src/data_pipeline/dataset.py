@@ -53,9 +53,27 @@ def _apply_rotation(window, R):
 
 
 class FoGDataset(Dataset):
-    def __init__(self, features, labels, augment=False, augment_prob=0.5,
-                 jitter_sigma=0.03, scale_sigma=0.05, max_time_shift=5,
-                 rotation_max_deg=15.0, rotation_prob=0.5):
+    """Windowed IMU dataset.
+
+    Holds *raw* (unscaled) windows plus an optional fitted ``RobustScaler``.
+    Augmentation order matters and is deliberate (see B1 in the project plan):
+
+      1. Geometric/gain augmentations (rotation, per-channel gain, time-shift)
+         run in **physical sensor units**. Rotation is only a rigid SO(3)
+         transform when applied before the anisotropic per-channel scaler — so
+         it must precede scaling.
+      2. ``scaler.transform`` is applied next (if a scaler is given).
+      3. Additive ``jitter`` is applied last, in **normalized** space, where it
+         models post-normalization sensor noise.
+
+    The augmentation RNG is seeded (``seed``) so runs are reproducible; for
+    multi-worker loaders, re-seed per worker via ``fog_worker_init_fn``.
+    """
+
+    def __init__(self, features, labels, scaler=None, augment=False,
+                 augment_prob=0.5, jitter_sigma=0.03, scale_sigma=0.05,
+                 max_time_shift=5, rotation_max_deg=15.0, rotation_prob=0.5,
+                 seed=None):
         self.X = np.ascontiguousarray(features, dtype=np.float32)
         # Accept (N, T) dense labels OR legacy 1D (N,) last-step labels.
         labels = np.asarray(labels)
@@ -63,6 +81,7 @@ class FoGDataset(Dataset):
             T = self.X.shape[1]
             labels = np.broadcast_to(labels[:, None], (labels.shape[0], T)).copy()
         self.y = labels.astype(np.int64)
+        self.scaler = scaler
         self.augment = augment
         self.p = augment_prob
         self.jitter_sigma = jitter_sigma
@@ -70,6 +89,11 @@ class FoGDataset(Dataset):
         self.max_time_shift = max_time_shift
         self.rotation_max_rad = np.deg2rad(rotation_max_deg)
         self.rotation_prob = rotation_prob
+        # Seeded generator -> reproducible augmentation. None falls back to OS
+        # entropy (non-reproducible) but that path is only hit if a caller opts
+        # out explicitly. fog_worker_init_fn re-seeds this per DataLoader worker.
+        self._base_seed = seed
+        self.rng = np.random.default_rng(seed)
 
     def __len__(self):
         return len(self.y)
@@ -95,19 +119,40 @@ class FoGDataset(Dataset):
     def __getitem__(self, idx):
         x = self.X[idx]
         y = self.y[idx]
+        rng = self.rng
+        # --- 1. Geometric/gain augmentation in physical units ---
         if self.augment:
-            rng = np.random.default_rng()
             if rng.random() < self.rotation_prob:
                 x = self._rotate(x, rng)
-            if rng.random() < self.p:
-                x = self._jitter(x, rng)
             if rng.random() < self.p:
                 x = self._scaling(x, rng)
             if rng.random() < self.p:
                 x, y = self._time_shift(x, y, rng)
-        x_t = torch.from_numpy(np.ascontiguousarray(x))
+        # --- 2. Scale (raw -> normalized) ---
+        if self.scaler is not None:
+            x = self.scaler.transform(x)
+        # --- 3. Additive jitter in normalized space ---
+        if self.augment and rng.random() < self.p:
+            x = self._jitter(x, rng)
+        x_t = torch.from_numpy(np.ascontiguousarray(x, dtype=np.float32))
         y_t = torch.from_numpy(np.ascontiguousarray(y))
         return x_t, y_t
+
+
+def fog_worker_init_fn(worker_id):
+    """Re-seed each DataLoader worker's augmentation RNG.
+
+    Without this, forked workers share the parent's RNG state and emit
+    identical augmentations. Combines the dataset's base seed with the worker
+    id so every worker is deterministic *and* distinct.
+    """
+    info = torch.utils.data.get_worker_info()
+    if info is None:
+        return
+    ds = info.dataset
+    base = getattr(ds, '_base_seed', None)
+    seed_seq = (0 if base is None else base, worker_id)
+    ds.rng = np.random.default_rng(seed_seq)
 
 
 def _subject_id_from_filename(path):
@@ -150,6 +195,24 @@ def _last_step(y):
     return y[:, -1] if y.ndim == 2 else y
 
 
+def recording_lengths(data_dir, subject):
+    """Window count per recording file for `subject`.
+
+    Same order and skip rules as `_load_files`, so the evaluator can split a
+    subject's concatenated predictions back into individual recordings and run
+    streaming post-processing without crossing a recording seam.
+    """
+    groups = _group_files_by_subject(data_dir)
+    lengths = []
+    for xf in groups.get(subject, []):
+        yf = xf.replace('_x.npy', '_y.npy')
+        if not os.path.exists(yf):
+            continue
+        # mmap so we only read the header, not the whole array.
+        lengths.append(int(np.load(xf, mmap_mode='r').shape[0]))
+    return lengths
+
+
 def create_loso_dataloaders(data_dir, test_subject, val_subject=None, batch_size=64,
                             scaler=None, augment_train=True, num_workers=0, seed=42,
                             rotation_max_deg=15.0, rotation_prob=0.5):
@@ -189,21 +252,22 @@ def create_loso_dataloaders(data_dir, test_subject, val_subject=None, batch_size
     if scaler is None:
         scaler = RobustScaler().fit(X_train)
 
-    X_train = scaler.transform(X_train)
-    if X_val is not None:
-        X_val = scaler.transform(X_val)
-    if X_test is not None:
-        X_test = scaler.transform(X_test)
-
-    train_ds = FoGDataset(X_train, y_train, augment=augment_train,
-                          rotation_max_deg=rotation_max_deg, rotation_prob=rotation_prob)
-    val_ds = FoGDataset(X_val, y_val, augment=False) if X_val is not None else None
-    test_ds = FoGDataset(X_test, y_test, augment=False) if X_test is not None else None
+    # Datasets hold RAW windows + the scaler; scaling happens per-window in
+    # __getitem__ AFTER geometric augmentation, so rotation stays a rigid
+    # transform in physical sensor space (see FoGDataset docstring / plan B1).
+    train_ds = FoGDataset(X_train, y_train, scaler=scaler, augment=augment_train,
+                          rotation_max_deg=rotation_max_deg, rotation_prob=rotation_prob,
+                          seed=seed)
+    val_ds = (FoGDataset(X_val, y_val, scaler=scaler, augment=False)
+              if X_val is not None else None)
+    test_ds = (FoGDataset(X_test, y_test, scaler=scaler, augment=False)
+               if X_test is not None else None)
 
     g = torch.Generator()
     g.manual_seed(seed)
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True,
-                              drop_last=True, num_workers=num_workers, generator=g)
+                              drop_last=True, num_workers=num_workers, generator=g,
+                              worker_init_fn=fog_worker_init_fn)
     val_loader = DataLoader(val_ds, batch_size=batch_size, shuffle=False,
                             num_workers=num_workers) if val_ds is not None else None
     test_loader = DataLoader(test_ds, batch_size=batch_size, shuffle=False,

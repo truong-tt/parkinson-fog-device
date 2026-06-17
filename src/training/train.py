@@ -104,6 +104,21 @@ def _eval_probs(model, loader, device):
     return np.concatenate(probs), np.concatenate(targets)
 
 
+def _focal_alpha(pos_rate, fallback=CLASS_WEIGHTS):
+    """Inverse-frequency focal-loss alpha from the fold's actual FoG rate.
+
+    Normalized inverse-frequency for 2 classes reduces to ``[p, 1 - p]``, so
+    the minority (freeze) class gets the larger weight automatically. The old
+    hardcoded ``[0.2, 0.8]`` was just this for an assumed p=0.2 — deriving it
+    per fold tracks each subject pool's real imbalance. Degenerate folds (no
+    positives or all positives) fall back to the configured constant.
+    """
+    p = float(pos_rate)
+    if not (0.0 < p < 1.0):
+        return list(fallback)
+    return [p, 1.0 - p]
+
+
 def _val_mcc_and_threshold(probs, targets):
     if len(np.unique(targets)) < 2:
         return 0.0, 0.5
@@ -134,7 +149,8 @@ def train_fold(test_subject, seq_length, args):
     optimizer = optim.AdamW(model.parameters(), lr=args.learning_rate, weight_decay=WEIGHT_DECAY)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(
         optimizer, mode='max', patience=LR_PATIENCE, factor=0.5)
-    class_weights = torch.tensor(CLASS_WEIGHTS, dtype=torch.float32).to(device)
+    alpha = _focal_alpha(meta['train_pos_rate'])
+    class_weights = torch.tensor(alpha, dtype=torch.float32).to(device)
     criterion = FocalLoss(alpha=class_weights, gamma=FOCAL_GAMMA)
     scaler_amp = torch.cuda.amp.GradScaler(enabled=use_amp)
 
@@ -153,7 +169,8 @@ def train_fold(test_subject, seq_length, args):
         print(f"[win={seq_length} test={test_subject} val={meta['val_subject']} "
               f"device={device} amp={use_amp}] "
               f"train_w={meta['train_windows']} val_w={meta['val_windows']} "
-              f"test_w={meta['test_windows']} pos_rate={meta['train_pos_rate']:.3f}")
+              f"test_w={meta['test_windows']} pos_rate={meta['train_pos_rate']:.3f} "
+              f"focal_alpha=[{alpha[0]:.3f}, {alpha[1]:.3f}]")
 
     for epoch in range(args.epochs):
         tr_loss = _train_epoch(model, train_loader, criterion, optimizer, device,
@@ -178,7 +195,7 @@ def train_fold(test_subject, seq_length, args):
             scaler.save(scaler_path)
             with open(meta_path, 'w') as f:
                 json.dump({**meta, 'best_epoch': epoch, 'best_val_mcc': best_mcc,
-                           'val_threshold': best_threshold,
+                           'val_threshold': best_threshold, 'focal_alpha': alpha,
                            'seed': args.seed, 'seq_length': seq_length,
                            'use_se': USE_SE, 'drop_path': DROP_PATH}, f, indent=2)
         else:

@@ -2,12 +2,17 @@
 # (requirements-edge.txt) because TF/ONNX pinning is fragile and most cloud
 # GPU sessions only need to train.
 
-numpy>=1.24,<2.0
+# No upper cap: Colab (and most 2025+ environments) ship numpy 2.x with scipy
+# built against it. Pinning <2.0 forces a downgrade that breaks the preinstalled
+# scipy ABI ("No module named 'numpy.char'"). The edge stack (TF 2.15) needs
+# numpy<2 and pins it in requirements-edge.txt instead.
+numpy>=1.24
 pandas>=2.0
 scipy>=1.10
 scikit-learn>=1.3
 openpyxl>=3.1
 PyYAML>=6.0
+matplotlib>=3.7   # EDA figures (scripts/eda.py); Colab already ships it
 
 # PyTorch — install the appropriate CUDA wheel in cloud Dockerfiles.
 # CPU wheel works for CI smoke tests.

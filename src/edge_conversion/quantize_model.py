@@ -30,6 +30,7 @@ from config import (MODELS_DIR, PROCESSED_DATA_DIR, NUM_INPUTS, NUM_CHANNELS,
                     KERNEL_SIZE, DROPOUT, DROP_PATH, USE_SE, NUM_CLASSES,
                     WINDOW_SIZES)
 from models.tcn_model import HopeGaitTCN
+from data_pipeline.dsp import RobustScaler
 
 
 _EDGE_DEPS_HINT = (
@@ -52,15 +53,25 @@ def _load_edge_deps():
     return onnx, prepare, tf
 
 
-def representative_data_gen_factory(seq_length, num_inputs, processed_dir):
+def representative_data_gen_factory(seq_length, num_inputs, processed_dir,
+                                    scaler=None):
     """Return a generator that yields ~100 calibration samples.
 
     Prefers real preprocessed windows from ``processed_dir/win_<seq_length>/*_x.npy``
     (so int8 scales reflect actual signal statistics). Falls back to standard
     normal noise only when no real data is available.
+
+    IMPORTANT: when a ``scaler`` is given the windows are scaled exactly as in
+    training/inference. The model is trained on RobustScaler-normalized inputs,
+    so calibrating on raw windows would set the int8 input range from the wrong
+    distribution and inflate the quantization error. Pass the fold's scaler.
     """
     win_dir = os.path.join(processed_dir, f'win_{seq_length}')
     real_files = sorted(glob.glob(os.path.join(win_dir, '*_x.npy')))
+
+    def _prep(window):
+        w = window.astype(np.float32)
+        return scaler.transform(w) if scaler is not None else w
 
     if real_files:
         def gen():
@@ -72,7 +83,7 @@ def representative_data_gen_factory(seq_length, num_inputs, processed_dir):
                 for i in range(arr.shape[0]):
                     if yielded >= 100:
                         return
-                    yield [arr[i:i + 1].astype(np.float32)]
+                    yield [_prep(arr[i:i + 1])]
                     yielded += 1
         return gen
 
@@ -183,10 +194,25 @@ def main(argv=None):
     prepare(onnx_model).export_graph(tf_dir)
     print(f"Wrote TF SavedModel: {tf_dir}")
 
+    # Calibrate on windows scaled with the SAME fold scaler the model trained
+    # on. Without it, int8 input ranges come from the raw distribution and the
+    # quantization error is artificially large.
+    scaler_path = os.path.join(MODELS_DIR, f'win_{args.window}',
+                               f'scaler_subj{args.subject}.npz')
+    calib_scaler = None
+    if os.path.exists(scaler_path):
+        calib_scaler = RobustScaler.load(scaler_path)
+    else:
+        sys.stderr.write(
+            f"WARN: no scaler at {scaler_path}; calibrating on RAW windows. "
+            "int8 input range will not match the scaled inputs the model "
+            "expects — train the fold first so the scaler exists.\n"
+        )
+
     converter = tf.lite.TFLiteConverter.from_saved_model(tf_dir)
     converter.optimizations = [tf.lite.Optimize.DEFAULT]
     converter.representative_dataset = representative_data_gen_factory(
-        args.window, NUM_INPUTS, PROCESSED_DATA_DIR,
+        args.window, NUM_INPUTS, PROCESSED_DATA_DIR, scaler=calib_scaler,
     )
     converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
     converter.inference_input_type = tf.int8

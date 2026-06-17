@@ -21,10 +21,20 @@
 !agent/**
 !reports/
 !reports/**
+!notebooks/
+!notebooks/**
 !models/
 !models/.gitkeep
+
+# Generated report artifacts (produced by scripts/eda.py and the evaluator) —
+# keep the authored docs, ignore the run outputs.
+reports/results_table.md
+reports/eda_summary.md
+reports/eda_summary.json
+reports/figures/*.png
 
 __pycache__/
 *.pyc
 *.pyo
 .pytest_cache/
+.ipynb_checkpoints/

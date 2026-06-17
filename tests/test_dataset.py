@@ -9,6 +9,7 @@ from data_pipeline.dataset import (FoGDataset, _random_rotation_matrix,
                                    _apply_rotation, ACC_SLICE, GRAV_SLICE,
                                    GYRO_SLICE, _group_files_by_subject,
                                    create_loso_dataloaders)
+from data_pipeline.dsp import RobustScaler
 
 
 def test_rotation_preserves_norms():
@@ -48,6 +49,44 @@ def test_dataset_accepts_dense_labels_and_returns_tensors():
     assert isinstance(x_t, torch.Tensor)
     assert y_t.shape == (16,)
     assert int(y_t[-1].item()) == 1
+
+
+def test_augmentation_runs_in_physical_space_before_scaling():
+    # B1: rotation must precede the (anisotropic) scaler so it stays a rigid
+    # SO(3) transform in sensor space. Pin the contract by replaying the exact
+    # RNG draw order of __getitem__ and asserting output == scale(rotate(raw)).
+    raw = np.random.default_rng(7).standard_normal((16, 9)).astype(np.float32)
+    X = raw[None]  # (1, 16, 9)
+    y = np.zeros((1, 16), dtype=np.int64)
+    scaler = RobustScaler(median=np.zeros(9, np.float32),
+                          iqr=np.arange(1, 10, dtype=np.float32))  # anisotropic
+    ds = FoGDataset(X, y, scaler=scaler, augment=True, augment_prob=0.0,
+                    rotation_prob=1.0, seed=123, rotation_max_deg=20.0)
+    x_out, _ = ds[0]
+
+    # Replicate the exact RNG sequence: rotation gate, rotation draw, scaling
+    # gate (skipped, p=0), time-shift gate (skipped), scale, jitter gate.
+    rng = np.random.default_rng(123)
+    assert rng.random() < 1.0
+    R = _random_rotation_matrix(np.deg2rad(20.0), rng)
+    expected = _apply_rotation(raw, R)
+    rng.random(); rng.random()
+    expected = scaler.transform(expected)
+    rng.random()
+    np.testing.assert_allclose(x_out.numpy(), expected, atol=1e-5)
+
+
+def test_augmentation_is_reproducible_with_seed():
+    # B2: same seed -> identical augmented windows across fresh dataset instances.
+    X = np.random.default_rng(1).standard_normal((6, 16, 9)).astype(np.float32)
+    y = np.zeros((6, 16), dtype=np.int64)
+
+    def run():
+        ds = FoGDataset(X, y, augment=True, seed=99)
+        return [ds[i][0].numpy().copy() for i in range(len(ds))]
+
+    for xa, xb in zip(run(), run()):
+        np.testing.assert_array_equal(xa, xb)
 
 
 def test_loso_no_subject_leak(tmp_path):

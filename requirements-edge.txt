@@ -5,6 +5,11 @@
 # New path:
 ai-edge-torch>=0.2.0
 
+# TensorFlow 2.15 requires numpy<2; pin it here (training requirements.txt no
+# longer caps numpy, so the edge env must constrain it itself). Install the edge
+# stack in a SEPARATE venv from training.
+numpy>=1.24,<2.0
+
 # Legacy path (pin together; protobuf must match TF's expected version):
 tensorflow==2.15.0
 onnx>=1.15

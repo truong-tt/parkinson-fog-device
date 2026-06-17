@@ -116,10 +116,14 @@ def segment_file(raw_data_path, output_base_dir, window_sizes, overlap=WINDOW_OV
 
 
 def main():
-    raw_files = sorted(glob.glob(os.path.join(RAW_DATA_DIR, "*.xlsx")) +
-                       glob.glob(os.path.join(RAW_DATA_DIR, "*.csv")))
+    # Search recursively so both flat (data/raw/*.csv) and the documented
+    # nested layout (data/raw/subject_XX/*.csv) are picked up.
+    raw_files = sorted(
+        glob.glob(os.path.join(RAW_DATA_DIR, "**", "*.xlsx"), recursive=True) +
+        glob.glob(os.path.join(RAW_DATA_DIR, "**", "*.csv"), recursive=True))
     if not raw_files:
-        print(f"No raw data files found in {RAW_DATA_DIR}. Please download the dataset first.")
+        print(f"No raw data files found under {RAW_DATA_DIR} (searched recursively). "
+              "Place the Stanford NMBL CSV/XLSX recordings there first.")
         return
 
     print(f"Found {len(raw_files)} raw files. Starting preprocessing...")
