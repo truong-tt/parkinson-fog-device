@@ -51,11 +51,11 @@ _Not a medical device._
 ---
 
 ## 7. Results
-- Post-processed LOSO MCC **{{mcc_mean}} ± {{mcc_std}}**.
-- PR-AUC {{pr_auc}}, ROC-AUC {{roc_auc}}.
-- Events: detection **{{detect_rate}}%**, latency **{{latency_s}} s**,
-  FA/h **{{fa_per_h}}**.
-- **TCN beats baseline by {{tcn_gain}} MCC.**
+- ROC-AUC **0.77**, PR-AUC **0.59** (strong ranking).
+- Per-subject LOSO MCC @threshold **+0.20 ± 0.13** — ties baseline, ranks better.
+- Pooled MCC reads +0.34 but is prevalence-weighted (one subject dominates).
+- Events: detection **32%**, latency **0.45 s**, FA/h **0.0**.
+- Honest-eval finding: post-processing collapses low-prevalence folds → fix it.
 
 ---
 
@@ -75,5 +75,7 @@ _Not a medical device._
 
 ## 10. Takeaways
 - Defensible pipeline: baseline-justified, leakage-controlled, reproducible.
-- Deep model earns its place by **{{tcn_gain}} MCC** over classical.
+- TCN matches the baseline (MCC 0.20) and ranks better (ROC-AUC 0.77), with
+  headroom (more epochs/data, post-pp calibration).
+- Honest evaluation surfaced two findings: pooled-vs-per-subject, post-pp collapse.
 - Edge cost quantified: **{{delta_mcc}} MCC** for an MCU-sized int8 model.
