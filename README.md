@@ -177,7 +177,6 @@ HopeGait-FoG_Detection_via_IMU_and_ML/
 │       └── quantize_model.py
 ├── tests/
 │   ├── conftest.py
-│   ├── test_agent_schema.py
 │   ├── test_dataset.py
 │   ├── test_dsp.py
 │   ├── test_edge_conversion.py
@@ -185,15 +184,9 @@ HopeGait-FoG_Detection_via_IMU_and_ML/
 │   ├── test_focal_loss.py
 │   ├── test_postprocess.py
 │   └── test_tcn_causality.py
-├── agent/                      # AI Agent workflow — Gemini-orchestrated synthetic-data generator
-│   ├── hopegait_agent.py
-│   ├── synth_signal.py
-│   ├── requirements.txt
-│   └── README.md
-└── .github/workflows/          # CI: tests, training launch, AI Agent
+└── .github/workflows/          # CI: tests, training launch
     ├── ci.yml
-    ├── train.yml
-    └── hopegait_agent.yml
+    └── train.yml
 ```
 
 ---
@@ -355,10 +348,6 @@ docker run --rm hopegait:cpu python scripts/smoke_train.py
 ```
 
 `PYTHONPATH=/app/src` is set inside the container by the Dockerfile — no manual export needed in Docker runs.
-
-### AI Agent — synthetic-data generator
-
-`agent/hopegait_agent.py` is a Gemini-orchestrated workflow that produces a small synthetic FoG dataset under `data/synthetic/win_128/`, in the same `.npy` layout `preprocess.py` writes — drop-in for `dataset.py` as a mix-in alongside real Stanford NMBL recordings. Setup, free-tier usage, and the full pipeline are documented in [`agent/README.md`](agent/README.md).
 
 ---
 

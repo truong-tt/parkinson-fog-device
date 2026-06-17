@@ -23,8 +23,6 @@
 !config/
 !config/**
 !pytest.ini
-!agent/
-!agent/**
 !reports/
 !reports/**
 !notebooks/
