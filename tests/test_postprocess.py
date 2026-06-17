@@ -31,6 +31,24 @@ def test_hysteresis_clean_walk_to_freeze():
     assert out.tolist() == [0, 0, 0, 1, 1, 1, 0, 0]
 
 
+def test_postprocess_enters_at_threshold():
+    # Probs above threshold but below the OLD straddled high (thr + band/2 = 0.6).
+    # Asymmetric entry at threshold must still detect these (the bug we fixed:
+    # low-prevalence folds collapsing to all-negative).
+    p = np.full(10, 0.55)
+    decisions, _ = postprocess_predictions(p, threshold=0.5, smooth_window=1,
+                                           hysteresis_band=0.2)
+    assert decisions.sum() == 10
+
+
+def test_postprocess_exit_is_debounced():
+    # thr 0.5, band 0.2 -> exit only below 0.3. 0.45 stays FoG; 0.2 exits.
+    p = np.array([0.7, 0.7, 0.45, 0.45, 0.2])
+    decisions, _ = postprocess_predictions(p, threshold=0.5, smooth_window=1,
+                                           hysteresis_band=0.2)
+    assert decisions.tolist() == [1, 1, 1, 1, 0]
+
+
 def test_postprocess_wrapper_runs():
     rng = np.random.default_rng(0)
     p = np.clip(rng.normal(0.5, 0.2, 100), 0, 1)

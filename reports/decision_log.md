@@ -24,6 +24,33 @@ not an omission.
 
 ---
 
+## 2026-06-18 — Post-processing collapsed low-prevalence folds; made hysteresis asymmetric
+
+**Finding:** First good LOSO run (EMA 0.99) gave pooled post-pp MCC +0.337 but
+per-subject mean only +0.071 (vs +0.204 at the fold threshold). Subjects 2/5/6
+dropped to MCC 0.000 / 0% sensitivity after post-processing — e.g. subj 2 fell
+from +0.356 @fold-threshold to 0.000.
+
+**Cause:** the hysteresis straddled the operating point (`high = threshold +
+band/2`), so entry was *stricter* than the threshold itself. Low-prevalence
+folds whose smoothed probs never reached `threshold + 0.1` never triggered.
+
+**Decision:** asymmetric hysteresis — enter at `threshold`, leave below
+`threshold - band`. Entry is never stricter than plain thresholding; the band
+only debounces the exit. Also surfaced the broader point: **report per-subject
+mean, not the prevalence-weighted pooled MCC** (pooling hid a 0.27 gap).
+
+---
+
+## 2026-06-18 — quantize_model.py looked for the checkpoint in the wrong dir
+
+**Fix:** default checkpoint path now `MODELS_DIR/win_<window>/hopegait_tcn_best_subj<id>.pth`
+(training writes there); it previously looked in the MODELS_DIR root and failed
+with "checkpoint not found". Also: the edge stack (TF 2.15) needs Python ≤3.11,
+so it can't run on current Colab (3.12) — the int8 delta is produced locally.
+
+---
+
 ## 2026-06-17 — EMA decay 0.999 too slow for this dataset (training finding)
 
 **Finding:** A first LOSO run (25 epochs, EMA decay 0.999) gave LOSO ROC-AUC

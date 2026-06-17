@@ -136,7 +136,7 @@ def parse_args(argv=None):
     parser.add_argument(
         '--checkpoint', default=None,
         help='Path to the .pth checkpoint. Defaults to '
-             '<MODELS_DIR>/hopegait_tcn_best_subj<subject>.pth.',
+             '<MODELS_DIR>/win_<window>/hopegait_tcn_best_subj<subject>.pth.',
     )
     parser.add_argument(
         '--output-prefix', default=None,
@@ -149,8 +149,10 @@ def parse_args(argv=None):
 def main(argv=None):
     args = parse_args(argv)
 
+    # Training writes checkpoints under MODELS_DIR/win_<window>/ (see train.py),
+    # so default there — not the MODELS_DIR root.
     checkpoint = args.checkpoint or os.path.join(
-        MODELS_DIR, f'hopegait_tcn_best_subj{args.subject}.pth'
+        MODELS_DIR, f'win_{args.window}', f'hopegait_tcn_best_subj{args.subject}.pth'
     )
     if not os.path.exists(checkpoint):
         sys.stderr.write(

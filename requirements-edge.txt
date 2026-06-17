@@ -1,6 +1,10 @@
 # Edge-conversion deps. Install on top of requirements.txt only when running
 # the quantize/export pipeline. The PyTorch -> TF path is being rebuilt with
 # `ai-edge-torch`; keep the legacy ONNX path pinned in case it's still needed.
+#
+# REQUIRES Python 3.9-3.11: tensorflow==2.15 and ai-edge-torch do not ship for
+# Python 3.12+. Run the edge step in a py3.11 env (NOT current Colab, which is
+# 3.12). Training/eval are unaffected and run anywhere.
 
 # New path:
 ai-edge-torch>=0.2.0

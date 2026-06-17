@@ -61,16 +61,21 @@ def apply_hysteresis(probs: np.ndarray, low: float = 0.4, high: float = 0.6,
 
 def postprocess_predictions(probs: np.ndarray, threshold: float,
                             smooth_window: int = 5, hysteresis_band: float = 0.1):
-    """Convenience wrapper: smooth, then hysteresis around a base threshold.
+    """Convenience wrapper: smooth, then asymmetric hysteresis at the threshold.
 
     `threshold` is the per-fold operating point (e.g. Youden's J on inner val).
-    The hysteresis band straddles it: high = threshold + band/2, low - band/2.
+    Hysteresis is ASYMMETRIC: enter FREEZE at `threshold` and leave only when the
+    smoothed prob drops below `threshold - hysteresis_band`.
+
+    Why not straddle (high = threshold + band/2)? Straddling raises the entry bar
+    above the chosen operating point, so low-prevalence folds whose smoothed
+    probs never reach threshold + band/2 collapse to all-negative (observed:
+    subjects with high fold-threshold MCC dropping to 0 after post-processing).
+    Entering exactly at `threshold` is never stricter than plain thresholding;
+    the band only debounces the exit, killing flicker without losing detections.
     """
     p_smooth = smooth_probs(probs, window=smooth_window)
-    half = hysteresis_band / 2.0
-    high = float(np.clip(threshold + half, 0.0, 1.0))
-    low = float(np.clip(threshold - half, 0.0, 1.0))
-    if high < low:
-        high, low = low, high
+    high = float(np.clip(threshold, 0.0, 1.0))
+    low = float(np.clip(threshold - hysteresis_band, 0.0, 1.0))
     decisions = apply_hysteresis(p_smooth, low=low, high=high)
     return decisions, p_smooth
