@@ -93,7 +93,10 @@ ROTATION_PROB = get_config('HOPEGAIT_ROTATION_PROB', 'rotation_prob', 0.5, parse
 
 # --- Inference post-processing ---
 SMOOTH_WINDOW = get_config('HOPEGAIT_SMOOTH_WINDOW', 'smooth_window', 5, parser=int)
-HYSTERESIS_LOW = get_config('HOPEGAIT_HYSTERESIS_LOW', 'hysteresis_low', 0.4, parser=float)
+# Band = HIGH - LOW feeds the asymmetric exit (exit at threshold - band). 0.20 was
+# tuned for the old 100 Hz model and over-smooths the 64 Hz one; 0.10 is the
+# interim default — confirm with evaluate.py's band sweep.
+HYSTERESIS_LOW = get_config('HOPEGAIT_HYSTERESIS_LOW', 'hysteresis_low', 0.5, parser=float)
 HYSTERESIS_HIGH = get_config('HOPEGAIT_HYSTERESIS_HIGH', 'hysteresis_high', 0.6, parser=float)
 
 # --- Cloud / runtime ---

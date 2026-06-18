@@ -396,6 +396,45 @@ def _write_results_table(summary, path):
         f.write("\n".join(lines))
 
 
+def sweep_postproc_bands(seq_length, bands=(0.0, 0.05, 0.10, 0.15, 0.20)):
+    """Re-score post-processing at several hysteresis bands — no retrain.
+
+    Reuses each fold's saved probs + frozen threshold, recomputing only the cheap
+    smoothing + hysteresis. Picks the band trade-off: too wide over-smooths and
+    sinks specificity (sticky FoG), too narrow loses flicker debouncing.
+    """
+    data_dir = os.path.join(PROCESSED_DATA_DIR, f'win_{seq_length}')
+    folds = []
+    for subj in get_all_subjects(data_dir):
+        r = evaluate_fold(subj, seq_length)
+        if r is None:
+            continue
+        probs, targets, _, fold_thr, rec_lengths = r
+        if len(targets) == 0:
+            continue
+        folds.append((subj, probs, targets, fold_thr, rec_lengths))
+    if not folds:
+        return
+
+    print(f"\n=== Post-proc hysteresis-band sweep (win {seq_length}) ===")
+    print("  band | pooled pp MCC | per-subject mean pp MCC")
+    for band in bands:
+        agg_t, agg_p, per_subj = [], [], []
+        for _, probs, targets, fold_thr, rec_lengths in folds:
+            prob_segs = _split_by_lengths(probs, rec_lengths)
+            pp_segs = [postprocess_predictions(
+                ps, threshold=fold_thr, smooth_window=SMOOTH_WINDOW,
+                hysteresis_band=band)[0] for ps in prob_segs]
+            pp_preds = (np.concatenate(pp_segs) if pp_segs
+                        else np.array([], dtype=np.int64))
+            per_subj.append(_metrics_from_preds(targets, pp_preds, fold_thr)['mcc'])
+            agg_t.append(targets)
+            agg_p.append(pp_preds)
+        pooled = _metrics_from_preds(np.concatenate(agg_t), np.concatenate(agg_p),
+                                     float('nan'))['mcc']
+        print(f"  {band:.2f} |    {pooled:+.3f}     |    {np.mean(per_subj):+.3f}")
+
+
 def main():
     summary = {}
     for seq in WINDOW_SIZES:
@@ -404,6 +443,7 @@ def main():
             continue
         summary[f'win_{seq}'] = r
         _print_summary(r)
+        sweep_postproc_bands(seq)
 
     if not summary:
         print("No models evaluated. Did training finish?")

@@ -47,7 +47,7 @@ rotation_prob: 0.5
 
 # --- Inference post-processing ---
 smooth_window: 5
-hysteresis_low: 0.4
+hysteresis_low: 0.5    # band = high-low = 0.10 (0.20 over-smoothed the 64 Hz model); confirm via evaluate band sweep
 hysteresis_high: 0.6
 
 # --- Cloud / runtime ---
