@@ -46,8 +46,8 @@ rotation_max_deg: 15.0
 rotation_prob: 0.5
 
 # --- Inference post-processing ---
-smooth_window: 3       # 5 (=5 s @ 1 Hz) washes out ~4 s episodes; 3 keeps short ones
-hysteresis_low: 0.55   # band = high-low = 0.05 (won the 64 Hz sweep); confirm via sweep_postproc
+smooth_window: 1       # pass-through; any averaging @1 Hz erases ~4 s episodes (sweep winner)
+hysteresis_low: 0.55   # band = high-low = 0.05 (won the 64 Hz sweep)
 hysteresis_high: 0.6
 
 # --- Cloud / runtime ---

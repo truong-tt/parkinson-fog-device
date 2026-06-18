@@ -92,9 +92,10 @@ ROTATION_MAX_DEG = get_config('HOPEGAIT_ROTATION_MAX_DEG', 'rotation_max_deg', 1
 ROTATION_PROB = get_config('HOPEGAIT_ROTATION_PROB', 'rotation_prob', 0.5, parser=float)
 
 # --- Inference post-processing ---
-# smooth_window is in predictions; at 1 Hz, 5 ~ a 5 s average that washes out the
-# ~4 s median FoG episode. 3 keeps debouncing without erasing short episodes.
-SMOOTH_WINDOW = get_config('HOPEGAIT_SMOOTH_WINDOW', 'smooth_window', 3, parser=int)
+# smooth_window is in predictions; at 1 Hz any averaging erases the ~4 s median
+# FoG episode. 1 = pass-through (no smoothing) — won the 64 Hz sweep at band 0.05
+# (per-subject MCC +0.197 vs +0.189 raw); larger values only cost detection.
+SMOOTH_WINDOW = get_config('HOPEGAIT_SMOOTH_WINDOW', 'smooth_window', 1, parser=int)
 # Band = HIGH - LOW feeds the asymmetric exit (exit at threshold - band). 0.20 was
 # tuned for the old 100 Hz model; 0.05 won the 64 Hz sweep — confirm via sweep_postproc.
 HYSTERESIS_LOW = get_config('HOPEGAIT_HYSTERESIS_LOW', 'hysteresis_low', 0.55, parser=float)
