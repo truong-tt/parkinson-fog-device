@@ -234,8 +234,8 @@ ls data/raw/        # expect *.xlsx recordings
 
 ```bash
 # 1. Clone
-git clone https://github.com/truong-tt/HopeGait-FoG_Detection_via_IMU_and_ML.git
-cd HopeGait-FoG_Detection_via_IMU_and_ML
+git clone https://github.com/truong-tt/parkinson-fog-device.git
+cd parkinson-fog-device
 
 # 2. Create and activate virtual environment
 python3.11 -m venv .venv
