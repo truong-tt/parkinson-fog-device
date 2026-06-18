@@ -92,11 +92,12 @@ ROTATION_MAX_DEG = get_config('HOPEGAIT_ROTATION_MAX_DEG', 'rotation_max_deg', 1
 ROTATION_PROB = get_config('HOPEGAIT_ROTATION_PROB', 'rotation_prob', 0.5, parser=float)
 
 # --- Inference post-processing ---
-SMOOTH_WINDOW = get_config('HOPEGAIT_SMOOTH_WINDOW', 'smooth_window', 5, parser=int)
+# smooth_window is in predictions; at 1 Hz, 5 ~ a 5 s average that washes out the
+# ~4 s median FoG episode. 3 keeps debouncing without erasing short episodes.
+SMOOTH_WINDOW = get_config('HOPEGAIT_SMOOTH_WINDOW', 'smooth_window', 3, parser=int)
 # Band = HIGH - LOW feeds the asymmetric exit (exit at threshold - band). 0.20 was
-# tuned for the old 100 Hz model and over-smooths the 64 Hz one; 0.10 is the
-# interim default — confirm with evaluate.py's band sweep.
-HYSTERESIS_LOW = get_config('HOPEGAIT_HYSTERESIS_LOW', 'hysteresis_low', 0.5, parser=float)
+# tuned for the old 100 Hz model; 0.05 won the 64 Hz sweep — confirm via sweep_postproc.
+HYSTERESIS_LOW = get_config('HOPEGAIT_HYSTERESIS_LOW', 'hysteresis_low', 0.55, parser=float)
 HYSTERESIS_HIGH = get_config('HOPEGAIT_HYSTERESIS_HIGH', 'hysteresis_high', 0.6, parser=float)
 
 # --- Cloud / runtime ---

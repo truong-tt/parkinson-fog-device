@@ -396,12 +396,13 @@ def _write_results_table(summary, path):
         f.write("\n".join(lines))
 
 
-def sweep_postproc_bands(seq_length, bands=(0.0, 0.05, 0.10, 0.15, 0.20)):
-    """Re-score post-processing at several hysteresis bands — no retrain.
+def sweep_postproc(seq_length, smooth_windows=(1, 3, 5), bands=(0.0, 0.05, 0.10)):
+    """Re-score post-processing over a (smooth_window x hysteresis_band) grid.
 
-    Reuses each fold's saved probs + frozen threshold, recomputing only the cheap
-    smoothing + hysteresis. Picks the band trade-off: too wide over-smooths and
-    sinks specificity (sticky FoG), too narrow loses flicker debouncing.
+    No retrain: reuses each fold's saved probs + frozen threshold, recomputing
+    only the cheap smoothing + hysteresis. Smoothing longer than a FoG episode
+    washes out short ones (the dominant lever at 1 Hz / ~4 s episodes); the band
+    trades specificity (sticky FoG) for flicker debouncing.
     """
     data_dir = os.path.join(PROCESSED_DATA_DIR, f'win_{seq_length}')
     folds = []
@@ -416,23 +417,22 @@ def sweep_postproc_bands(seq_length, bands=(0.0, 0.05, 0.10, 0.15, 0.20)):
     if not folds:
         return
 
-    print(f"\n=== Post-proc hysteresis-band sweep (win {seq_length}) ===")
-    print("  band | pooled pp MCC | per-subject mean pp MCC")
-    for band in bands:
-        agg_t, agg_p, per_subj = [], [], []
-        for _, probs, targets, fold_thr, rec_lengths in folds:
-            prob_segs = _split_by_lengths(probs, rec_lengths)
-            pp_segs = [postprocess_predictions(
-                ps, threshold=fold_thr, smooth_window=SMOOTH_WINDOW,
-                hysteresis_band=band)[0] for ps in prob_segs]
-            pp_preds = (np.concatenate(pp_segs) if pp_segs
-                        else np.array([], dtype=np.int64))
-            per_subj.append(_metrics_from_preds(targets, pp_preds, fold_thr)['mcc'])
-            agg_t.append(targets)
-            agg_p.append(pp_preds)
-        pooled = _metrics_from_preds(np.concatenate(agg_t), np.concatenate(agg_p),
-                                     float('nan'))['mcc']
-        print(f"  {band:.2f} |    {pooled:+.3f}     |    {np.mean(per_subj):+.3f}")
+    print(f"\n=== Post-proc sweep (win {seq_length}) — per-subject mean pp MCC ===")
+    print("  smooth\\band | " + " | ".join(f"{b:.2f}" for b in bands))
+    for sw in smooth_windows:
+        cells = []
+        for band in bands:
+            per_subj = []
+            for _, probs, targets, fold_thr, rec_lengths in folds:
+                prob_segs = _split_by_lengths(probs, rec_lengths)
+                pp_segs = [postprocess_predictions(
+                    ps, threshold=fold_thr, smooth_window=sw,
+                    hysteresis_band=band)[0] for ps in prob_segs]
+                pp_preds = (np.concatenate(pp_segs) if pp_segs
+                            else np.array([], dtype=np.int64))
+                per_subj.append(_metrics_from_preds(targets, pp_preds, fold_thr)['mcc'])
+            cells.append(f"{np.mean(per_subj):+.3f}")
+        print(f"  sw={sw:<8} | " + " | ".join(cells))
 
 
 def main():
@@ -443,7 +443,7 @@ def main():
             continue
         summary[f'win_{seq}'] = r
         _print_summary(r)
-        sweep_postproc_bands(seq)
+        sweep_postproc(seq)
 
     if not summary:
         print("No models evaluated. Did training finish?")
