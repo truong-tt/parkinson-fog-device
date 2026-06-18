@@ -21,6 +21,49 @@ def _warm_lfilter(b, a, data):
     return out
 
 
+def gravity_align_matrix(mean_gravity, target=(-1.0, 0.0, 0.0)):
+    """Rotation mapping the mean-gravity direction onto ``target``.
+
+    Canonicalizes sensor mounting: applied (as ``v @ R.T``) to a recording's
+    acc/gravity/gyro it removes the absolute tilt, so recordings and subjects
+    mounted at different orientations share one frame. Without it the gravity
+    channels leak per-recording orientation that does not generalize across a
+    LOSO split (e.g. a subject remounted up to ~180 deg apart between visits).
+
+    Args:
+        mean_gravity: Mean gravity vector ``(3,)`` of the recording.
+        target: Canonical gravity direction (default ``-x``, matching the
+            consistently-mounted subjects).
+
+    Returns:
+        ``(3, 3)`` float32 rotation; identity if gravity is degenerate.
+    """
+    g = np.asarray(mean_gravity, dtype=np.float64)
+    n = np.linalg.norm(g)
+    if n < 1e-8:
+        return np.eye(3, dtype=np.float32)
+    a = g / n
+    b = np.asarray(target, dtype=np.float64)
+    b = b / np.linalg.norm(b)
+    v = np.cross(a, b)
+    c = float(np.dot(a, b))
+    if c > 1.0 - 1e-8:                      # already aligned
+        return np.eye(3, dtype=np.float32)
+    if c < -1.0 + 1e-8:                     # antiparallel: 180 deg about any perp axis
+        perp = np.array([1.0, 0.0, 0.0]) if abs(a[0]) < 0.9 else np.array([0.0, 1.0, 0.0])
+        axis = np.cross(a, perp)
+        axis = axis / np.linalg.norm(axis)
+        K = np.array([[0, -axis[2], axis[1]],
+                      [axis[2], 0, -axis[0]],
+                      [-axis[1], axis[0], 0]])
+        return (np.eye(3) + 2.0 * (K @ K)).astype(np.float32)
+    vx = np.array([[0, -v[2], v[1]],
+                   [v[2], 0, -v[0]],
+                   [-v[1], v[0], 0]])
+    R = np.eye(3) + vx + vx @ vx * (1.0 / (1.0 + c))
+    return R.astype(np.float32)
+
+
 class IMUFilter:
     # Default fs matches the upstream FREQ_DESIRED (post-resample). At 64 Hz
     # nyquist is 32 Hz, so the 15 Hz lowpass and 0.3 Hz gravity cutoff are

@@ -31,6 +31,7 @@
       "raw_rows": 11172,
       "resampled_rows": 5586,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 1.7,
       "windows": {
         "128": {
           "n": 86,
@@ -45,6 +46,7 @@
       "raw_rows": 12287,
       "resampled_rows": 6143,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 1.4,
       "windows": {
         "128": {
           "n": 94,
@@ -59,6 +61,7 @@
       "raw_rows": 10743,
       "resampled_rows": 5371,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 2.6,
       "windows": {
         "128": {
           "n": 82,
@@ -73,6 +76,7 @@
       "raw_rows": 11559,
       "resampled_rows": 5779,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 2.1,
       "windows": {
         "128": {
           "n": 89,
@@ -87,6 +91,7 @@
       "raw_rows": 13872,
       "resampled_rows": 6936,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 2.2,
       "windows": {
         "128": {
           "n": 107,
@@ -101,6 +106,7 @@
       "raw_rows": 11214,
       "resampled_rows": 5607,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 3.3,
       "windows": {
         "128": {
           "n": 86,
@@ -115,6 +121,7 @@
       "raw_rows": 13290,
       "resampled_rows": 6645,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 6.8,
       "windows": {
         "128": {
           "n": 102,
@@ -129,6 +136,7 @@
       "raw_rows": 21392,
       "resampled_rows": 10696,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 3.6,
       "windows": {
         "128": {
           "n": 166,
@@ -143,6 +151,7 @@
       "raw_rows": 10818,
       "resampled_rows": 5409,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 14.9,
       "windows": {
         "128": {
           "n": 83,
@@ -157,6 +166,7 @@
       "raw_rows": 11449,
       "resampled_rows": 5724,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 15.3,
       "windows": {
         "128": {
           "n": 88,
@@ -171,6 +181,7 @@
       "raw_rows": 13151,
       "resampled_rows": 6575,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 9.7,
       "windows": {
         "128": {
           "n": 101,
@@ -185,6 +196,7 @@
       "raw_rows": 13758,
       "resampled_rows": 6879,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 10.7,
       "windows": {
         "128": {
           "n": 106,
@@ -199,6 +211,7 @@
       "raw_rows": 7426,
       "resampled_rows": 3713,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 14.1,
       "windows": {
         "128": {
           "n": 57,
@@ -213,6 +226,7 @@
       "raw_rows": 7242,
       "resampled_rows": 3621,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 13.9,
       "windows": {
         "128": {
           "n": 55,
@@ -227,6 +241,7 @@
       "raw_rows": 5811,
       "resampled_rows": 2905,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 14.1,
       "windows": {
         "128": {
           "n": 44,
@@ -241,6 +256,7 @@
       "raw_rows": 11595,
       "resampled_rows": 5797,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 15.2,
       "windows": {
         "128": {
           "n": 89,
@@ -255,6 +271,7 @@
       "raw_rows": 9892,
       "resampled_rows": 4946,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 14.8,
       "windows": {
         "128": {
           "n": 76,
@@ -269,6 +286,7 @@
       "raw_rows": 11159,
       "resampled_rows": 5579,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 13.8,
       "windows": {
         "128": {
           "n": 86,
@@ -283,6 +301,7 @@
       "raw_rows": 9906,
       "resampled_rows": 4953,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 14.0,
       "windows": {
         "128": {
           "n": 76,
@@ -297,6 +316,7 @@
       "raw_rows": 19594,
       "resampled_rows": 9797,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 12.0,
       "windows": {
         "128": {
           "n": 152,
@@ -311,6 +331,7 @@
       "raw_rows": 23024,
       "resampled_rows": 11512,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 11.7,
       "windows": {
         "128": {
           "n": 178,
@@ -325,6 +346,7 @@
       "raw_rows": 13312,
       "resampled_rows": 6656,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 7.7,
       "windows": {
         "128": {
           "n": 103,
@@ -339,6 +361,7 @@
       "raw_rows": 35328,
       "resampled_rows": 17664,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 8.7,
       "windows": {
         "128": {
           "n": 275,
@@ -353,6 +376,7 @@
       "raw_rows": 16189,
       "resampled_rows": 8094,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 7.9,
       "windows": {
         "128": {
           "n": 125,
@@ -367,6 +391,7 @@
       "raw_rows": 8783,
       "resampled_rows": 4391,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 11.2,
       "windows": {
         "128": {
           "n": 67,
@@ -381,6 +406,7 @@
       "raw_rows": 14632,
       "resampled_rows": 7316,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 12.2,
       "windows": {
         "128": {
           "n": 113,
@@ -395,6 +421,7 @@
       "raw_rows": 12473,
       "resampled_rows": 6236,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 11.6,
       "windows": {
         "128": {
           "n": 96,
@@ -409,6 +436,7 @@
       "raw_rows": 14510,
       "resampled_rows": 7255,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 9.3,
       "windows": {
         "128": {
           "n": 112,
@@ -423,6 +451,7 @@
       "raw_rows": 13389,
       "resampled_rows": 6694,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 10.4,
       "windows": {
         "128": {
           "n": 103,
@@ -437,6 +466,7 @@
       "raw_rows": 6436,
       "resampled_rows": 3218,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 1.9,
       "windows": {
         "128": {
           "n": 49,
@@ -451,6 +481,7 @@
       "raw_rows": 19328,
       "resampled_rows": 9664,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 1.1,
       "windows": {
         "128": {
           "n": 150,
@@ -465,6 +496,7 @@
       "raw_rows": 16908,
       "resampled_rows": 8454,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 1.8,
       "windows": {
         "128": {
           "n": 131,
@@ -479,6 +511,7 @@
       "raw_rows": 6023,
       "resampled_rows": 3011,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 3.5,
       "windows": {
         "128": {
           "n": 46,
@@ -493,6 +526,7 @@
       "raw_rows": 6173,
       "resampled_rows": 3086,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 4.3,
       "windows": {
         "128": {
           "n": 47,
@@ -507,6 +541,7 @@
       "raw_rows": 6192,
       "resampled_rows": 3096,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 4.1,
       "windows": {
         "128": {
           "n": 47,
@@ -521,6 +556,7 @@
       "raw_rows": 6239,
       "resampled_rows": 3119,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 5.2,
       "windows": {
         "128": {
           "n": 47,
@@ -535,6 +571,7 @@
       "raw_rows": 8842,
       "resampled_rows": 4421,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 165.7,
       "windows": {
         "128": {
           "n": 68,
@@ -549,6 +586,7 @@
       "raw_rows": 6865,
       "resampled_rows": 3432,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 165.2,
       "windows": {
         "128": {
           "n": 52,
@@ -563,6 +601,7 @@
       "raw_rows": 8103,
       "resampled_rows": 4051,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 21.3,
       "windows": {
         "128": {
           "n": 62,
@@ -577,6 +616,7 @@
       "raw_rows": 7650,
       "resampled_rows": 3825,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 19.9,
       "windows": {
         "128": {
           "n": 58,
@@ -591,6 +631,7 @@
       "raw_rows": 7423,
       "resampled_rows": 3711,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 10.9,
       "windows": {
         "128": {
           "n": 56,
@@ -605,6 +646,7 @@
       "raw_rows": 7357,
       "resampled_rows": 3678,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 10.6,
       "windows": {
         "128": {
           "n": 56,
@@ -619,6 +661,7 @@
       "raw_rows": 9282,
       "resampled_rows": 4641,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 10.9,
       "windows": {
         "128": {
           "n": 71,
@@ -633,6 +676,7 @@
       "raw_rows": 9022,
       "resampled_rows": 4511,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 11.7,
       "windows": {
         "128": {
           "n": 69,
@@ -647,6 +691,7 @@
       "raw_rows": 3751,
       "resampled_rows": 1875,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 13.0,
       "windows": {
         "128": {
           "n": 28,
@@ -661,6 +706,7 @@
       "raw_rows": 8097,
       "resampled_rows": 4048,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 15.9,
       "windows": {
         "128": {
           "n": 62,
@@ -675,6 +721,7 @@
       "raw_rows": 7419,
       "resampled_rows": 3709,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 13.6,
       "windows": {
         "128": {
           "n": 56,
@@ -689,6 +736,7 @@
       "raw_rows": 6879,
       "resampled_rows": 3439,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 16.1,
       "windows": {
         "128": {
           "n": 52,
@@ -703,6 +751,7 @@
       "raw_rows": 7244,
       "resampled_rows": 3622,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 16.9,
       "windows": {
         "128": {
           "n": 55,
@@ -717,6 +766,7 @@
       "raw_rows": 7067,
       "resampled_rows": 3533,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 16.8,
       "windows": {
         "128": {
           "n": 54,
@@ -731,6 +781,7 @@
       "raw_rows": 7887,
       "resampled_rows": 3943,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 19.6,
       "windows": {
         "128": {
           "n": 60,
@@ -745,6 +796,7 @@
       "raw_rows": 7181,
       "resampled_rows": 3590,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 19.5,
       "windows": {
         "128": {
           "n": 55,
@@ -759,6 +811,7 @@
       "raw_rows": 8642,
       "resampled_rows": 4321,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 6.6,
       "windows": {
         "128": {
           "n": 66,
@@ -773,6 +826,7 @@
       "raw_rows": 9858,
       "resampled_rows": 4929,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 9.7,
       "windows": {
         "128": {
           "n": 76,
@@ -787,6 +841,7 @@
       "raw_rows": 9858,
       "resampled_rows": 4929,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 9.7,
       "windows": {
         "128": {
           "n": 76,
@@ -801,6 +856,7 @@
       "raw_rows": 12416,
       "resampled_rows": 6208,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 2.9,
       "windows": {
         "128": {
           "n": 96,
@@ -815,6 +871,7 @@
       "raw_rows": 15360,
       "resampled_rows": 7680,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 6.6,
       "windows": {
         "128": {
           "n": 119,
@@ -829,6 +886,7 @@
       "raw_rows": 9601,
       "resampled_rows": 4800,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 6.2,
       "windows": {
         "128": {
           "n": 74,
@@ -843,6 +901,7 @@
       "raw_rows": 7937,
       "resampled_rows": 3968,
       "lumbar_nans_filled": 0,
+      "mounting_tilt_deg": 6.2,
       "windows": {
         "128": {
           "n": 61,

@@ -12,6 +12,7 @@ raw_sampling_rate: 128.0
 sampling_rate: 64.0
 window_sizes: [128]      # 2 s @ 64 Hz
 window_overlap: 0.5
+canonicalize_orientation: true   # rotate each recording's mean gravity -> -x (fixes mounting scatter, e.g. subj 6)
 
 # --- Model architecture ---
 # 4-block TCN with dilations 1/2/4/8, kernel 3 -> receptive field 61 samples (~0.95 s).

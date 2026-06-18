@@ -53,6 +53,11 @@ RAW_SAMPLING_RATE = get_config('HOPEGAIT_RAW_SAMPLING_RATE', 'raw_sampling_rate'
 SAMPLING_RATE = get_config('HOPEGAIT_SAMPLING_RATE', 'sampling_rate', 64.0, parser=float)
 WINDOW_SIZES = get_config('HOPEGAIT_WINDOW_SIZES', 'window_sizes', [128], parser=json.loads)
 WINDOW_OVERLAP = get_config('HOPEGAIT_WINDOW_OVERLAP', 'window_overlap', 0.5, parser=float)
+# Rotate each recording so its mean gravity aligns to a canonical axis, removing
+# per-recording mounting tilt that otherwise leaks through the gravity channels
+# and breaks LOSO folds for inconsistently-mounted subjects (e.g. subject 6).
+CANON_ORIENT = get_config('HOPEGAIT_CANON_ORIENT', 'canonicalize_orientation', True,
+                          parser=lambda v: str(v).lower() in ('1', 'true', 'yes'))
 
 # --- Model architecture ---
 # 4-block TCN with dilations (1, 2, 4, 8) gives a receptive field of

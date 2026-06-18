@@ -29,12 +29,12 @@ if SRC_DIR not in sys.path:
     sys.path.append(SRC_DIR)
 
 from config import (WINDOW_SIZES, RAW_DATA_DIR, PROCESSED_DATA_DIR, SAMPLING_RATE,
-                    WINDOW_OVERLAP, RAW_SAMPLING_RATE)
+                    WINDOW_OVERLAP, RAW_SAMPLING_RATE, CANON_ORIENT)
 
 try:
-    from .dsp import IMUFilter
+    from .dsp import IMUFilter, gravity_align_matrix
 except ImportError:
-    from dsp import IMUFilter
+    from dsp import IMUFilter, gravity_align_matrix
 
 
 NUM_FEATURE_CHANNELS = 9
@@ -90,7 +90,8 @@ def _resample_labels(timestamps, labels, fs):
     return f(new_ts).astype(np.int64)
 
 
-def segment_file(raw_data_path, output_base_dir, window_sizes, overlap=WINDOW_OVERLAP, fs=SAMPLING_RATE):
+def segment_file(raw_data_path, output_base_dir, window_sizes, overlap=WINDOW_OVERLAP,
+                 fs=SAMPLING_RATE, canonicalize=CANON_ORIENT):
     """Preprocess one recording into windowed ``_x.npy``/``_y.npy`` per size.
 
     Args:
@@ -120,6 +121,18 @@ def segment_file(raw_data_path, output_base_dir, window_sizes, overlap=WINDOW_OV
     imu = IMUFilter(fs=fs, raw_fs=RAW_SAMPLING_RATE)
     linear_acc, gravity, gyro_f, _ = imu.process_signal(acc, gyro, timestamps)
 
+    # Canonicalize mounting: rotate acc/gravity/gyro so mean gravity -> -x. Removes
+    # the per-recording tilt that otherwise leaks through the gravity channels.
+    tilt_deg = 0.0
+    if canonicalize:
+        mean_g = gravity.mean(axis=0)
+        R = gravity_align_matrix(mean_g)
+        linear_acc = linear_acc @ R.T
+        gravity = gravity @ R.T
+        gyro_f = gyro_f @ R.T
+        tilt_deg = float(np.degrees(np.arccos(np.clip(
+            np.dot(mean_g, [-1.0, 0.0, 0.0]) / (np.linalg.norm(mean_g) + 1e-9), -1.0, 1.0))))
+
     if timestamps is not None and len(linear_acc) != len(labels):
         labels = _resample_labels(timestamps, labels, fs)
 
@@ -128,7 +141,8 @@ def segment_file(raw_data_path, output_base_dir, window_sizes, overlap=WINDOW_OV
 
     summary = {'file': file_id, 'subject_id': subject_id,
                'raw_rows': int(len(df)), 'resampled_rows': int(n),
-               'lumbar_nans_filled': n_nan, 'windows': {}, 'skipped': []}
+               'lumbar_nans_filled': n_nan, 'mounting_tilt_deg': round(tilt_deg, 1),
+               'windows': {}, 'skipped': []}
 
     for win_size in window_sizes:
         if n < win_size:

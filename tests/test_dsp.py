@@ -4,7 +4,8 @@ RobustScaler round-trips."""
 import numpy as np
 import tempfile
 
-from data_pipeline.dsp import IMUFilter, freeze_index_window, RobustScaler
+from data_pipeline.dsp import (IMUFilter, freeze_index_window, RobustScaler,
+                               gravity_align_matrix)
 
 
 def test_lowpass_is_causal():
@@ -35,6 +36,18 @@ def test_freeze_index_band_sensitivity():
     fi_w = freeze_index_window(walking, fs=fs)
     fi_t = freeze_index_window(tremor, fs=fs)
     assert fi_t > fi_w
+
+
+def test_gravity_align_canonicalizes():
+    # Any mounting tilt -> mean gravity rotated onto -x, magnitude preserved,
+    # rotation orthonormal (so gyro/acc norms survive). Includes the 180 deg flip.
+    for g in ([-9.8, 0.0, 0.0], [0.0, 9.8, 0.0], [3.0, -4.0, 8.0], [9.8, 0.02, 0.0]):
+        g = np.array(g, dtype=np.float64)
+        R = gravity_align_matrix(g)
+        aligned = g @ R.T
+        np.testing.assert_allclose(aligned / np.linalg.norm(aligned), [-1, 0, 0], atol=1e-5)
+        np.testing.assert_allclose(np.linalg.norm(aligned), np.linalg.norm(g), atol=1e-4)
+        np.testing.assert_allclose(R @ R.T, np.eye(3), atol=1e-5)
 
 
 def test_robust_scaler_roundtrip(tmp_path):
