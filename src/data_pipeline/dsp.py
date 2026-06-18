@@ -25,11 +25,20 @@ class IMUFilter:
     # Default fs matches the upstream FREQ_DESIRED (post-resample). At 64 Hz
     # nyquist is 32 Hz, so the 15 Hz lowpass and 0.3 Hz gravity cutoff are
     # comfortably below it.
-    def __init__(self, fs=64.0, lowpass_hz=15.0, gravity_cutoff_hz=0.3, order=4):
+    def __init__(self, fs=64.0, lowpass_hz=15.0, gravity_cutoff_hz=0.3, order=4,
+                 raw_fs=None):
         self.fs = float(fs)
+        self.raw_fs = float(raw_fs) if raw_fs else None
         self.nyq = 0.5 * self.fs
         self.b_lp, self.a_lp = butter(order, lowpass_hz / self.nyq, btype='low')
         self.b_grav, self.a_grav = butter(order, gravity_cutoff_hz / self.nyq, btype='low')
+        # Anti-alias lowpass built at the RAW rate, applied BEFORE downsampling.
+        # 15 Hz is well under the 64 Hz target Nyquist (32 Hz), so one filter
+        # both band-limits and stops content >32 Hz folding back during resample.
+        if self.raw_fs and self.raw_fs > self.fs:
+            self.b_aa, self.a_aa = butter(order, lowpass_hz / (0.5 * self.raw_fs), btype='low')
+        else:
+            self.b_aa = self.a_aa = None
 
     def resample_data(self, timestamps, data):
         # Uniform-grid resample so training and MCU see identical fs regardless
@@ -53,11 +62,23 @@ class IMUFilter:
             is ``None`` when no input timestamps were supplied.
         """
         new_ts = None
+        pre_filtered = False
         if timestamps is not None:
+            # Anti-alias at the raw rate FIRST, then resample, so the 128->64
+            # decimation can't alias HF content into the freeze band.
+            if self.b_aa is not None:
+                acc = _warm_lfilter(self.b_aa, self.a_aa, acc)
+                gyro = _warm_lfilter(self.b_aa, self.a_aa, gyro)
+                pre_filtered = True
             acc, new_ts = self.resample_data(timestamps, acc)
             gyro, _ = self.resample_data(timestamps, gyro)
-        acc_lp = self.apply_lowpass(acc)
-        gyro_lp = self.apply_lowpass(gyro)
+        # Skip the redundant second lowpass when already band-limited pre-resample;
+        # otherwise this is the only lowpass (no-timestamp / no-raw_fs path).
+        if pre_filtered:
+            acc_lp, gyro_lp = acc, gyro
+        else:
+            acc_lp = self.apply_lowpass(acc)
+            gyro_lp = self.apply_lowpass(gyro)
         gravity = self.apply_gravity_filter(acc_lp)
         linear_acc = acc_lp - gravity
         return linear_acc, gravity, gyro_lp, new_ts

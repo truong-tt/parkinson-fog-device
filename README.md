@@ -57,7 +57,7 @@ Each downstream stage is causal — outputs at time `t` depend only on samples u
 | | |
 |---|---|
 | **Raw input** | 6 channels @ 128 Hz from a lumbar IMU: `ax, ay, az` accelerometer (m/s²) and `gx, gy, gz` gyroscope (rad/s). Matches upstream [Stanford NMBL dataset](https://github.com/stanfordnmbl/imu-fog-detection) (`FREQ_SAMPLED = 128`). |
-| **Preprocess** | Resample 128 → 64 Hz (`FREQ_DESIRED`); 0.3 Hz lowpass split of `acc` into `gravity` and `linear_acc = acc − gravity`. 6 raw → **9 model channels**. |
+| **Preprocess** | Resample 128 → 64 Hz (`FREQ_DESIRED`); 15 Hz anti-alias lowpass; 0.3 Hz split of `acc` into `gravity` and `linear_acc = acc − gravity`. 6 raw → **9 model channels**. |
 | **Model input** | 9 channels per timestep: `linear_acc xyz` (m/s², gravity-removed) + `gravity xyz` (m/s², low-frequency acc) + `gyro xyz` (rad/s). 2-second window = 128 samples @ 64 Hz. |
 | **Output** | Per-window FoG probability → post-processed binary decision for cueing logic |
 | **Phase 1 — Brain** | Train causal TCN with leave-one-subject-out (LOSO) cross-validation |
@@ -143,48 +143,45 @@ Eliminates near-threshold flicker that would otherwise produce unstable cueing b
 HopeGait-FoG_Detection_via_IMU_and_ML/
 ├── Dockerfile
 ├── README.md
+├── DATA_LICENSE              # Upstream Stanford NMBL license (BSD-3)
 ├── pyproject.toml            # Packaging + requires-python (>=3.11)
 ├── requirements.txt          # Training deps
 ├── requirements-edge.txt     # Edge conversion deps (install separately)
 ├── config/
 │   └── training_config.yaml  # Editable hyperparameter overrides (optional)
-├── models/                   # Output dir for trained checkpoints + edge artifacts
+├── data/
+│   ├── raw/                  # Raw 128 Hz IMU (not redistributed)
+│   └── processed/win_<W>/    # Bundled preprocessed windows
+├── models/                   # Edge artifacts; checkpoints under models/win_<W>/
+├── notebooks/                # Exploratory notebooks
+├── reports/                  # EDA + LOSO results tables
 ├── scripts/
 │   ├── launch_cloud.sh
-│   └── smoke_train.py
+│   ├── smoke_train.py
+│   └── eda.py
 ├── src/
 │   ├── config.py
 │   ├── main.py
 │   ├── data_pipeline/
-│   │   ├── __init__.py
 │   │   ├── dataset.py
 │   │   ├── dsp.py
 │   │   └── preprocess.py
 │   ├── models/
-│   │   ├── __init__.py
 │   │   ├── tcn_model.py
 │   │   └── focal_loss.py
 │   ├── training/
-│   │   ├── __init__.py
 │   │   ├── train.py
 │   │   ├── evaluate.py
 │   │   └── ema.py
 │   ├── inference/
-│   │   ├── __init__.py
 │   │   └── postprocess.py
+│   ├── baselines/
+│   │   └── freeze_index_baseline.py
 │   └── edge_conversion/
-│       ├── __init__.py
-│       └── quantize_model.py
-├── tests/
-│   ├── conftest.py
-│   ├── test_dataset.py
-│   ├── test_dsp.py
-│   ├── test_edge_conversion.py
-│   ├── test_edge_conversion_e2e.py
-│   ├── test_focal_loss.py
-│   ├── test_postprocess.py
-│   └── test_tcn_causality.py
-└── .github/workflows/          # CI: tests, training launch
+│       ├── quantize_model.py
+│       └── evaluate_tflite.py
+├── tests/                    # pytest suite (dataset, dsp, model, eval, edge, baselines)
+└── .github/workflows/        # CI: tests, training launch
     ├── ci.yml
     └── train.yml
 ```
@@ -201,23 +198,25 @@ Data source: [Stanford NMBL IMU FoG Detection Repository](https://github.com/sta
 git clone https://github.com/stanfordnmbl/imu-fog-detection.git
 ```
 
-**Step 2 — Place raw files under `data/raw/`:**
+**Step 2 — Place raw files (flat) under `data/raw/`:**
 
 ```
 data/
 └── raw/
-    ├── subject_01/
-    │   └── *.csv      # 128 Hz, 6-channel IMU recordings (ax, ay, az, gx, gy, gz)
-    ├── subject_02/
-    └── ...
+    ├── pt1_visit_24_tbc_walklr_0_trial_2.xlsx
+    ├── pt1_visit_34_tbc_walklr_1_trial_1.xlsx
+    ├── pt2_visit_25_tbc_walklr_1_trial_1.xlsx
+    └── ...                # one .xlsx (or .csv) per walking trial
 ```
 
-The pipeline expects lumbar-mounted IMU recordings at **128 Hz** with **6 channels**: 3-axis accelerometer (`ax, ay, az` in m/s²) and 3-axis gyroscope (`gx, gy, gz` in rad/s). Preprocessing resamples to 64 Hz and expands the 3 accel channels into `linear_acc + gravity`, so the model sees 9 channels per timestep. Subject subdirectory naming must be consistent — the LOSO split groups by directory name as the subject ID.
+Filenames follow `pt<N>_visit_<V>_tbc_walklr_<dir>_trial_<T>`, but **subject identity comes from the `subject_ID` column, not the filename** — so the LOSO split never leaks a subject across folds. Files may sit flat in `data/raw/` (as shipped) or in per-subject subfolders; preprocessing globs recursively.
+
+Each recording holds **128 Hz** samples across many body IMUs (chest, lumbar, ankles, feet, head, thighs, wrists — 69 columns). The pipeline reads **only the lumbar sensor** — `imu_lumbar_{ax,ay,az}` (m/s²) + `imu_lumbar_{gx,gy,gz}` (rad/s) — plus `time`, `subject_ID`, and binary `freeze_label`. Preprocessing resamples to 64 Hz and expands the 3 accel channels into `linear_acc + gravity`, so the model sees 9 channels per timestep. Bundled set: ~59 recordings, 7 subjects, ~25.7% FoG.
 
 **Step 3 — Verify placement before running:**
 
 ```bash
-ls data/raw/
+ls data/raw/        # expect *.xlsx recordings
 ```
 
 > Use of raw data is subject to Stanford NMBL's original license and terms. See their repo for details.
@@ -290,7 +289,7 @@ pip install -r requirements-edge.txt
 
 Includes `ai-edge-torch>=0.2.0` (primary path) and the legacy ONNX/TF stack (`tensorflow==2.15.0`, `onnx>=1.15`, `onnx-tf>=1.10`, `protobuf>=3.20.3,<5`). Both targets produce int8 TFLite using the integer-arithmetic-only quantization scheme of [Quantization and Training of Neural Networks for Efficient Integer-Arithmetic-Only Inference](https://arxiv.org/abs/1712.05877).
 
-After a fold has been trained (so `models/hopegait_tcn_best_subj<id>.pth` exists), run the integrated edge step:
+After a fold has been trained (so `models/win_<window>/hopegait_tcn_best_subj<id>.pth` exists), run the integrated edge step:
 
 ```bash
 # Direct invocation
@@ -368,7 +367,7 @@ pytest
 | Sensitivity / Specificity | Clinical interpretability |
 | F1 | Standard binary classification |
 | PR-AUC / ROC-AUC | Threshold-agnostic ranking |
-| Accuracy | Reported only — not prioritized (imbalanced classes) |
+| Event-level | Episode detection rate, latency, false alarms/h |
 
 Three operating points reported per fold: fixed-threshold, fold-optimized threshold, and post-processed (hysteresis) output.
 
@@ -419,6 +418,6 @@ All credit for data collection and release goes to Stanford Neuromuscular Biomec
 
 ## License
 
-TBD.
+MIT (see `pyproject.toml`).
 
-> **Note:** The raw IMU dataset (Stanford NMBL) is governed by its own separate license.
+> **Note:** The raw IMU dataset (Stanford NMBL) is governed by its own separate license — see [`DATA_LICENSE`](DATA_LICENSE).

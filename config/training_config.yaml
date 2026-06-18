@@ -37,7 +37,8 @@ num_workers: 0
 drop_path: 0.1
 use_se: true
 dense_loss_weight: 0.5
-ema_decay: 0.999
+ema_decay: 0.99          # 0.999 too slow here (~78 steps/epoch): EMA shadow stays
+                         # near init -> saved weights score at chance. See decision_log 2026-06-17.
 
 # --- Augmentation ---
 rotation_max_deg: 15.0

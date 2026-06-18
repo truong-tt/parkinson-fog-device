@@ -80,7 +80,7 @@ NUM_WORKERS = get_config('HOPEGAIT_NUM_WORKERS', 'num_workers', 0, parser=int)
 DROP_PATH = get_config('HOPEGAIT_DROP_PATH', 'drop_path', 0.1, parser=float)
 USE_SE = get_config('HOPEGAIT_USE_SE', 'use_se', True, parser=lambda v: str(v).lower() in ('1', 'true', 'yes'))
 DENSE_LOSS_WEIGHT = get_config('HOPEGAIT_DENSE_LOSS_WEIGHT', 'dense_loss_weight', 0.5, parser=float)
-EMA_DECAY = get_config('HOPEGAIT_EMA_DECAY', 'ema_decay', 0.999, parser=float)
+EMA_DECAY = get_config('HOPEGAIT_EMA_DECAY', 'ema_decay', 0.99, parser=float)  # 0.999 too slow for short runs -> chance-level EMA shadow (decision_log 2026-06-17)
 
 # --- Augmentation ---
 ROTATION_MAX_DEG = get_config('HOPEGAIT_ROTATION_MAX_DEG', 'rotation_max_deg', 15.0, parser=float)
